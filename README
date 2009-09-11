@@ -1,6 +1,6 @@
 svgdom - A SVG DOM manipulator for a minimalist.
 It is aimed at using with svgweb (http://svgweb.googlecode.com/).
- *
+
 The MIT License
 
 Copyright (c) 2009 Hiroaki Nakamura <hnakamur@gmail.com>
