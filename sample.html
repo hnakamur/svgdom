@@ -1,0 +1,52 @@
+<html>
+<head>
+<title>svgdom - A SVG DOM manipulator for a minimalist.</title>
+<script src="http://svgweb.googlecode.com/svn/trunk/src/svg.js"
+    data-path="http://svgweb.googlecode.com/svn/trunk/src/"></script>
+<script src="svgdom.js"></script>
+<script>
+window.onload = function() {
+  var M = svgdom;
+
+  // manipulate an existing element.
+  M.byId("myText").setAttr({fill: "green"});
+
+  // build up a element tree.
+  M.byId("mySVG").append(
+    M.Circle().setAttr({r: 10, cx: 50, cy: 80}),
+    M.Text().setAttr({x: 20, y: 240}).append(M.TextNode("A dynamically created text")),
+    M.Path().setAttr({
+      id: "path1",
+      d: "M 100 200 C 200 100 300 0 400 100 C 500 200 600 300 700 200 C 800 100 900 100 900 100",
+      fill: "none",
+      stroke: "black"
+    }),
+    M.Text().append(M.TextPath().setAttrNS(xlinkns, {href: "#path1"}).
+        append(M.TextNode("This is a textpath. As of today, it seems textpath is not supported in svgweb.")))
+  );
+}
+</script>
+</head>
+<body>
+  <h1>Tests embedding a single SVG block into a SCRIPT block</h1>
+  <script type="image/svg+xml">
+    <svg id="mySVG" width="800" height="400" style="border: 1px solid black;">
+      <g id="myGroup">
+        <rect
+           id="myRect"
+           width="36.416"
+           height="36.416"
+           x="30"
+           y="30"
+           fill="red"/>
+        <text id="myText" 
+              x="80" 
+              y="80" 
+              font-family="Verdana" 
+              font-size="24" 
+              fill="blue">hello world</text>
+      </g>
+    </svg>
+  </script>
+</body>
+</html>
