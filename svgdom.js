@@ -130,6 +130,120 @@ var svgdom = (function() {
     M[M.camelize(type, true)] = M.curry(M.Element, type);
   }
 
+  M.toFixed = function(value, floatDigits) {
+    var s = value.toFixed(floatDigits);
+    var dotPos = s.indexOf(".");
+    if (dotPos == -1) return s;
+    for (var i = s.length - 1; i >= dotPos; i--) {
+      var c = s.charAt(i);
+      if (c != "0" && c != ".") break;
+    }
+    return s.substr(0, i + 1);
+  }
+
+  M.formatPath = function(commands, options) {
+    var config = M.mixin(M.mixin({}, M.formatPath.defaults), options),
+        coordFloatDigits = config.coordFloatDigits,
+        angleFloatDigits = config.angleFloatDigits,
+        coordSeparator = config.coordSeparator,
+        s = [];
+    for (var i = 0, n = commands.length; i < n; i++) {
+      var command = commands[i],
+          cmdChar = command[0],
+          m = command.length,
+          j = 1,
+          paramCount = m - j;
+      s.push(cmdChar);
+      switch (cmdChar.toUpperCase()) {
+      case "M":
+      case "L":
+      case "T":
+        if (paramCount == 0 || paramCount % 2)
+          throw new Error("Parameter count should be 2 * n (n >= 1) for command ".concat(cmdChar, " but was ", paramCount));
+        while (j < m) {
+          if (j > 1) s.push(" ");
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+          s.push(coordSeparator);
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+        }
+        break;
+      case "S":
+      case "Q":
+        if (paramCount == 0 || paramCount % 4)
+          throw new Error("Parameter count should be 4 * n (n >= 1) for command ".concat(cmdChar, " but was ", paramCount));
+        while (j < m) {
+          if (j > 1) s.push(" ");
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+          s.push(coordSeparator);
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+          s.push(" ");
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+          s.push(coordSeparator);
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+        }
+        break;
+      case "C":
+        if (paramCount == 0 || paramCount % 6)
+          throw new Error("Parameter count should be 6 * n (n >= 1) for command ".concat(cmdChar, " but was ", paramCount));
+        while (j < m) {
+          if (j > 1) s.push(" ");
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+          s.push(coordSeparator);
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+          s.push(" ");
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+          s.push(coordSeparator);
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+          s.push(" ");
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+          s.push(coordSeparator);
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+        }
+        break;
+      case "H":
+      case "V":
+        if (paramCount == 0)
+          throw new Error("Parameter needed 0 for command ".concat(cmdChar));
+        while (j < m) {
+          if (j > 1) s.push(" ");
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+        }
+        break;
+      case "Z":
+        if (paramCount != 0)
+          throw new Error("Parameter count should be 0 for command ".concat(
+              cmdChar, " but was ", paramCount));
+        break;
+      case "A":
+        while (j < m) {
+          if (j > 1) s.push(" ");
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+          s.push(coordSeparator);
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+          s.push(" ");
+          s.push(M.toFixed(command[j++], angleFloatDigits));
+          s.push(" ");
+          s.push(command[j++] ? 1 : 0);
+          s.push(" ");
+          s.push(command[j++] ? 1 : 0);
+          s.push(" ");
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+          s.push(coordSeparator);
+          s.push(M.toFixed(command[j++], coordFloatDigits));
+        }
+        break;
+      default:
+        throw new Error("Unsupported path command. command=" + cmdChar);
+      }
+    }
+    return s.join("");
+  }
+  M.formatPath.defaults = {
+    coordFloatDigits: 1,
+    angleFloatDigits: 1,
+    coordSeparator: ","
+  }
+
   M.mixin(M.prototype, {
     append: function() {
       for (var i = 0, len = arguments.length; i < len; i++)

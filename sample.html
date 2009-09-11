@@ -17,7 +17,12 @@ window.onload = function() {
     M.Text().setAttr({x: 20, y: 240}).append(M.TextNode("A dynamically created text")),
     M.Path().setAttr({
       id: "path1",
-      d: "M 100 200 C 200 100 300 0 400 100 C 500 200 600 300 700 200 C 800 100 900 100 900 100",
+      d: M.formatPath([
+        ["M", 100, 200],
+        ["C", 200, 100, 300, 0, 400, 100,
+              500, 200, 600, 300, 700, 200,
+              800, 100, 900, 100, 900, 100]
+      ]),
       fill: "none",
       stroke: "black"
     }),
