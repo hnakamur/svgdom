@@ -74,11 +74,14 @@ var svgdom = (function() {
     formatPath: formatPath,
     coordSeparator: ",",
 
+    formatTransform: formatTransform,
+    rotateThenTranslateTransform: rotateThenTranslateTransform,
+
     toFixed: toFixed,
     toFixedCoord: toFixedCoord,
     toFixedAngle: toFixedAngle,
-    coordFloatDigits: 1,
-    angleFloatDigits: 1,
+    coordFloatDigits: 2,
+    angleFloatDigits: 2,
 
     deg2rad: deg2rad,
     rad2deg: rad2deg,
@@ -153,8 +156,8 @@ var svgdom = (function() {
   }
 
   function toFixed(value, floatDigits) {
-    var s = value.toFixed(floatDigits);
-    var dotPos = s.indexOf(".");
+    var s = value.toFixed(floatDigits),
+        dotPos = s.indexOf(".");
     if (dotPos == -1) return s;
     for (var i = s.length - 1; i >= dotPos; i--) {
       var c = s.charAt(i);
@@ -262,6 +265,23 @@ var svgdom = (function() {
       }
     }
     return s.join("");
+  }
+
+  function formatTransform(transforms) {
+    var s = [];
+    for (var i = 0, n = transforms.length; i < n; i++) {
+      var transform = transforms[i];
+      s.push(transform[0].concat("(", transform.slice(1), ")"));
+    }
+    return s.join(" ");
+  }
+
+  function rotateThenTranslateTransform(cx, cy, angle) {
+    var t = [];
+    t.push(["translate", cx, cy]);
+    if (angle)
+      t.push(["rotate", angle]);
+    return formatTransform(t);
   }
 
   function deg2rad(degree) {
