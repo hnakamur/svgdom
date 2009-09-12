@@ -195,9 +195,9 @@ var svgdom = (function() {
             s.push(" ");
             s.push(this.toFixedAngle(command[j++]));
             s.push(" ");
-            s.push(command[j++] ? 1 : 0);
+            s.push(this.bool2flag(command[j++]));
             s.push(" ");
-            s.push(command[j++] ? 1 : 0);
+            s.push(this.bool2flag(command[j++]));
             s.push(" ");
             s.push(this.toFixedCoord(command[j++]));
             s.push(coordSeparator);
@@ -211,6 +211,10 @@ var svgdom = (function() {
       return s.join("");
     },
     coordSeparator: ",",
+
+    getPointOnStraightLine: getPointOnStraightLine,
+    getPointOnQuadraticBezierCurve: getPointOnQuadraticBezierCurve,
+    getPointOnCubicBezierCurve: getPointOnCubicBezierCurve,
 
     /*
      * Return point {x, y} of path
@@ -285,8 +289,11 @@ var svgdom = (function() {
       }
     },
 
+    normalizeDegree: normalizeDegree,
     deg2rad: deg2rad,
     rad2deg: rad2deg,
+
+    bool2flag: bool2flag,
 
     camelize: camelize,
     hyphenize: hyphenize
@@ -318,14 +325,6 @@ var svgdom = (function() {
       if (c != "0" && c != ".") break;
     }
     return s.substr(0, i + 1);
-  }
-
-  function deg2rad(degree) {
-    return Math.PI / 180 * degree;
-  }
-
-  function rad2deg(radian) {
-    return 180 / Math.PI * radian;
   }
 
   function camelize(name, firstCapital) {
@@ -360,5 +359,134 @@ var svgdom = (function() {
     return chars.join("");
   }
 
+  function getPointOnStraightLine(t, p0, p1) {
+    var t1 = 1 - t;
+    return {
+      x: t1 * p0.x + t * p1.x,
+      y: t1 * p0.y + t * p1.y
+    };
+  }
+
+  function getPointOnQuadraticBezierCurve(t, p0, p1, p2) {
+    var t1 = 1 - t,
+        a = t1 * t1,
+        b = 2 * t1 * t,
+        c = t * t;
+    return {
+      x: a * p0.x + b * p1.x + c * p2.x,
+      y: a * p0.y + b * p1.y + c * p2.y
+    };
+  }
+
+  function getPointOnCubicBezierCurve(t, p0, p1, p2, p3) {
+    var t1 = 1 - t,
+        a = t1 * t1 * t1,
+        b = 3 * t1 * t1 * t,
+        c = 3 * t1 * t * t,
+        d = t * t * t;
+    return {
+      x: a * p0.x + b * p1.x + c * p2.x + d * p3.x,
+      y: a * p0.y + b * p1.y + c * p2.y + d * p3.y
+    };
+  }
+
+  function getPointOnEllipticalArc(center, rx, ry, xAxisAngle, angle) {
+    var rad = deg2rad(angle);
+        p = {
+          x: rx * Math.cos(rad),
+          y: ry * Math.sin(rad)
+        };
+    return rotateAroundOriginThenTranslate(p, xAxisAngle, center.x, center.y);
+  }
+
+  function rotateAroundOriginThenTranslate(p, angle, dx, dy) {
+    var rad = deg2rad(angle),
+        cos = Math.cos(rad),
+        sin = Math.sin(sin);
+    return {
+      x: cos * x - sin * y + dx,
+      y: sin * x + cos * y + dy
+    };
+  }
+
+  function convertArcCenterToEndpoint(center, rx, ry, xAxisAngle, startAngle,
+      deltaAngle) {
+    return {
+      p1: getPointOnEllipticalArc(center, rx, ry, xAxisAngle, startAngle),
+      p2: getPointOnEllipticalArc(center, rx, ry, xAxisAngle,
+          startAngle + deltaAngle),
+      fa: bool2flag(Math.abs(deltaAngle) > 180),
+      fs: bool2flag(deltaAngle > 0)
+    }
+  }
+
+  function convertArcEndPointToCenter(p1, p2, rx, ry, xAxisAngle, fa, fs) {
+    var xarRad = deg2rad(xAxisRotation),
+        cosXar = Math.cos(xarRad),
+        sinXar = Math.sin(xarRad),
+        x1mx2d2 = (p1.x - p2.x) / 2,
+        y1my2d2 = (p1.y - p2.y) / 2,
+        x1p = cosXar * x1mx2d2 + sinXar * y1my2d2,
+        y1p = -sinXar * x1mx2d2 + cosXar * y1my2d2,
+        x1p2 = x1p * x1p,
+        y1p2 = y1p * y1p,
+        sign = fa != fs ? 1 : -1,
+        rx2 = rx * rx,
+        ry2 = ry * ry,
+        k = Math.sqrt((rx2 * ry2 - rx2 * y1p2 - ry2 * x1p2) /
+              (rx2 * y1p2 + ry2 + x1p2)),
+        cxp = sign * k * (rx * y1p / ry),
+        cxp = sign * k * (-ry * x1p / rx),
+        center = {
+          x: cosXar * cxp - sinXar * cyp + (p1.x + p2.x) / 2,
+          y: sinXar * cxp + cosXar * cyp + (p1.y + p2.y) / 2
+        }
+        xs = (x1p - cxp) / rx,
+        ys = (y1p - cyp) / ry,
+        startAngle = calcAngleBetweenVectors({x: 1, y: 0}, {x: xs, y: ys}),
+        deltaAngle = calcAngleBetweenVectors({x: xs, y: ys},
+          {x: (-x1p - cxp) / rx, y: (-y1p - cy) / ry}) - (fs ? 0 : 360);
+    return {
+      center: center,
+      startAngle: startAngle,
+      deltaAngle: deltaAngle
+    };
+  }
+
+  function calcAngleBetweenVectors(u, v) {
+    var sign = u.x * v.y - u.y * v.x >= 0 ? 1 : -1,
+        dp = calcDotProduct(u, v),
+        lu = calcVectorLength(u),
+        lv = calcVectorLength(v);
+    return normalizeDegree(rad2deg(sign * Math.acos(dp / (lu * lv))));
+  }
+
+  function calcDotProduct(u, v) {
+    return u.x * v.x + u.y * v.y;
+  }
+
+  function calcVectorLength(v) {
+    var x = v.x,
+        y = v.y;
+    return Math.sqrt(x * x + y * y);
+  }
+
+  function normalizeDegree(degree) {
+    return ((angle % 360) + 360) % 360;
+  }
+
+  function deg2rad(degree) {
+    return Math.PI / 180 * degree;
+  }
+
+  function rad2deg(radian) {
+    return 180 / Math.PI * radian;
+  }
+
+  function bool2flag(value) {
+    return value ? 1 : 0;
+  }
+
   return new Manipulator();
 })();
+}
