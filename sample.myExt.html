@@ -1,0 +1,36 @@
+<html>
+<head>
+<title>kozwER</title>
+<script src="../svgweb/src/svg.js" data-path="../svgweb/src/"></script>
+<script src="svgdom.js"></script>
+<script src="svgdom.myExt.js"></script>
+<script>
+window.onload = function() {
+  var M = svgdom,
+      X = M.myExt;
+
+  M.byId("svg1").append(
+    X.GenericLine([
+      ["M", 20, 160],
+      ["Q", 30, 140, 80, 120],
+      ["l", 40, 0],
+      ["C", 130, 120, 180, 100, 250, 20]
+    ],
+    {arrows: {start: true, end: true}})
+  );
+}
+</script>
+<style>
+.arrow {
+  stroke: blue;
+  fill: none;
+}
+</style>
+</head>
+<body>
+  <script type="image/svg+xml">
+    <svg id="svg1" width="300" height="200" style="border: 1px solid black;">
+    </svg>
+  </script>
+</body>
+</html>

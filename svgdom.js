@@ -65,22 +65,199 @@ var svgdom = (function() {
     } : function TextNode(text) {
       return new Manipulator(document.createTextNode(text));
     }),
-    append: append,
-    setAttr: setAttr,
-    setAttrNS: setAttrNS,
-    getAttr: getAttr,
-    getAttrNS: getAttrNS,
 
-    formatPath: formatPath,
+    append: function append() {
+      for (var i = 0, len = arguments.length; i < len; i++)
+        this.node.appendChild(arguments[i].node);
+      return this;
+    },
+    setAttr: function setAttr(attributes) {
+      for (var k in attributes)
+        this.node.setAttribute(k, attributes[k]);
+      return this;
+    },
+    setAttrNS: function setAttrNS(ns, attributes) {
+      for (var k in attributes)
+        this.node.setAttributeNS(ns, k, attributes[k]);
+      return this;
+    },
+    getAttr: function getAttr(names) {
+      var ret = {};
+      for (var i = 0, len = names.length; i < len; i++) {
+        var name = names[i];
+        ret[name] = this.node.getAttribute(name);
+      }
+      return ret;
+    },
+    getAttrNS: function getAttrNS(ns, names) {
+      var ret = {};
+      for (var i = 0, len = names.length; i < len; i++) {
+        var name = names[i];
+        ret[name] = this.node.getAttributeNS(ns, name);
+      }
+      return ret;
+    },
+
+    formatPath: function formatPath(commands) {
+      var coordSeparator = this.coordSeparator,
+          s = [];
+      for (var i = 0, n = commands.length; i < n; i++) {
+        var command = commands[i],
+            cmdChar = command[0],
+            m = command.length,
+            j = 1,
+            paramCount = m - j;
+        s.push(cmdChar);
+        switch (cmdChar.toUpperCase()) {
+        case "M":
+        case "L":
+        case "T":
+          if (paramCount == 0 || paramCount % 2)
+            throw new Error("Parameter count should be 2 * n (n >= 1) for command ".concat(cmdChar, " but was ", paramCount));
+          while (j < m) {
+            if (j > 1) s.push(" ");
+            s.push(this.toFixedCoord(command[j++]));
+            s.push(coordSeparator);
+            s.push(this.toFixedCoord(command[j++]));
+          }
+          break;
+        case "S":
+        case "Q":
+          if (paramCount == 0 || paramCount % 4)
+            throw new Error("Parameter count should be 4 * n (n >= 1) for command ".concat(cmdChar, " but was ", paramCount));
+          while (j < m) {
+            if (j > 1) s.push(" ");
+            s.push(this.toFixedCoord(command[j++]));
+            s.push(coordSeparator);
+            s.push(this.toFixedCoord(command[j++]));
+            s.push(" ");
+            s.push(this.toFixedCoord(command[j++]));
+            s.push(coordSeparator);
+            s.push(this.toFixedCoord(command[j++]));
+          }
+          break;
+        case "C":
+          if (paramCount == 0 || paramCount % 6)
+            throw new Error("Parameter count should be 6 * n (n >= 1) for command ".concat(cmdChar, " but was ", paramCount));
+          while (j < m) {
+            if (j > 1) s.push(" ");
+            s.push(this.toFixedCoord(command[j++]));
+            s.push(coordSeparator);
+            s.push(this.toFixedCoord(command[j++]));
+            s.push(" ");
+            s.push(this.toFixedCoord(command[j++]));
+            s.push(coordSeparator);
+            s.push(this.toFixedCoord(command[j++]));
+            s.push(" ");
+            s.push(this.toFixedCoord(command[j++]));
+            s.push(coordSeparator);
+            s.push(this.toFixedCoord(command[j++]));
+          }
+          break;
+        case "H":
+        case "V":
+          if (paramCount == 0)
+            throw new Error("Parameter needed 0 for command ".concat(cmdChar));
+          while (j < m) {
+            if (j > 1) s.push(" ");
+            s.push(this.toFixedCoord(command[j++]));
+          }
+          break;
+        case "Z":
+          if (paramCount != 0)
+            throw new Error("Parameter count should be 0 for command ".concat(
+                cmdChar, " but was ", paramCount));
+          break;
+        case "A":
+          while (j < m) {
+            if (j > 1) s.push(" ");
+            s.push(this.toFixedCoord(command[j++]));
+            s.push(coordSeparator);
+            s.push(this.toFixedCoord(command[j++]));
+            s.push(" ");
+            s.push(this.toFixedAngle(command[j++]));
+            s.push(" ");
+            s.push(command[j++] ? 1 : 0);
+            s.push(" ");
+            s.push(command[j++] ? 1 : 0);
+            s.push(" ");
+            s.push(this.toFixedCoord(command[j++]));
+            s.push(coordSeparator);
+            s.push(this.toFixedCoord(command[j++]));
+          }
+          break;
+        default:
+          throw new Error("Unsupported path command. command=" + cmdChar);
+        }
+      }
+      return s.join("");
+    },
     coordSeparator: ",",
 
-    formatTransform: formatTransform,
-    rotateThenTranslateTransform: rotateThenTranslateTransform,
+    /*
+     * Return point {x, y} of path
+     * at parametricDistance (0 to 1).
+     */
+    getPointOnPathAt: function getPointOnPathAt(parametricDistance) {
+      var node = this.node;
+      return node.getPointAtLength(node.getTotalLength() * parametricDistance);
+    },
+
+    /*
+     * Return tangent info {x, y, angle} to path
+     * at parametricDistance (0 to 1).
+     */
+    getTangentToPathAt: function getTangentToPathAt(parametricDistance) {
+      var node = this.node,
+          d = node.getTotalLength(),
+          p0 = node.getPointAtLength(d * parametricDistance),
+          epsilon = this.tangentEpsilon,
+          t = parametricDistance + epsilon,
+          p1,
+          angle;
+      if (t <= 1) {
+        p1 = node.getPointAtLength(d * t);
+        angle = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+      }
+      else {
+        p1 = node.getPointAtLength(d * (parametricDistance - epsilon));
+        angle = Math.atan2(p0.y - p1.y, p0.x - p1.x);
+      }
+      return {
+        x: p0.x,
+        y: p0.y,
+        angle: rad2deg(angle)
+      };
+    },
+    tangentEpsilon: 1e-4,
+
+    formatTransform: function formatTransform(transforms) {
+      var s = [];
+      for (var i = 0, n = transforms.length; i < n; i++) {
+        var transform = transforms[i];
+        s.push(transform[0].concat("(", transform.slice(1), ")"));
+      }
+      return s.join(" ");
+    },
+
+    rotateThenTranslateTransform: function rotateThenTranslateTransform(cx, cy, angle) {
+      var t = [];
+      t.push(["translate", this.toFixedCoord(cx), this.toFixedCoord(cy)]);
+      if (angle)
+        t.push(["rotate", this.toFixedAngle(angle)]);
+      return this.formatTransform(t);
+    },
 
     toFixed: toFixed,
-    toFixedCoord: toFixedCoord,
-    toFixedAngle: toFixedAngle,
+
+    toFixedCoord: function toFixedCoord(value) {
+      return toFixed(value, this.coordFloatDigits);
+    },
     coordFloatDigits: 2,
+
+    toFixedAngle: function toFixedAngle(value) {
+      return toFixed(value, this.angleFloatDigits);
+    },
     angleFloatDigits: 2,
 
     deg2rad: deg2rad,
@@ -123,38 +300,6 @@ var svgdom = (function() {
     Manipulator.prototype[camelize(type, true)] = curry(Element, type);
   }
 
-  function append() {
-    for (var i = 0, len = arguments.length; i < len; i++)
-      this.node.appendChild(arguments[i].node);
-    return this;
-  }
-  function setAttr(attributes) {
-    for (var k in attributes)
-      this.node.setAttribute(k, attributes[k]);
-    return this;
-  }
-  function setAttrNS(ns, attributes) {
-    for (var k in attributes)
-      this.node.setAttributeNS(ns, k, attributes[k]);
-    return this;
-  }
-  function getAttr(names) {
-    var ret = {};
-    for (var i = 0, len = names.length; i < len; i++) {
-      var name = names[i];
-      ret[name] = this.node.getAttribute(name);
-    }
-    return ret;
-  }
-  function getAttrNS(ns, names) {
-    var ret = {};
-    for (var i = 0, len = names.length; i < len; i++) {
-      var name = names[i];
-      ret[name] = this.node.getAttributeNS(ns, name);
-    }
-    return ret;
-  }
-
   function toFixed(value, floatDigits) {
     var s = value.toFixed(floatDigits),
         dotPos = s.indexOf(".");
@@ -164,124 +309,6 @@ var svgdom = (function() {
       if (c != "0" && c != ".") break;
     }
     return s.substr(0, i + 1);
-  }
-  function toFixedCoord(value) {
-    return toFixed(value, this.coordFloatDigits);
-  }
-  function toFixedAngle(value) {
-    return toFixed(value, this.angleFloatDigits);
-  }
-
-  function formatPath(commands) {
-    var coordSeparator = this.coordSeparator,
-        s = [];
-    for (var i = 0, n = commands.length; i < n; i++) {
-      var command = commands[i],
-          cmdChar = command[0],
-          m = command.length,
-          j = 1,
-          paramCount = m - j;
-      s.push(cmdChar);
-      switch (cmdChar.toUpperCase()) {
-      case "M":
-      case "L":
-      case "T":
-        if (paramCount == 0 || paramCount % 2)
-          throw new Error("Parameter count should be 2 * n (n >= 1) for command ".concat(cmdChar, " but was ", paramCount));
-        while (j < m) {
-          if (j > 1) s.push(" ");
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
-        }
-        break;
-      case "S":
-      case "Q":
-        if (paramCount == 0 || paramCount % 4)
-          throw new Error("Parameter count should be 4 * n (n >= 1) for command ".concat(cmdChar, " but was ", paramCount));
-        while (j < m) {
-          if (j > 1) s.push(" ");
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(" ");
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
-        }
-        break;
-      case "C":
-        if (paramCount == 0 || paramCount % 6)
-          throw new Error("Parameter count should be 6 * n (n >= 1) for command ".concat(cmdChar, " but was ", paramCount));
-        while (j < m) {
-          if (j > 1) s.push(" ");
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(" ");
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(" ");
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
-        }
-        break;
-      case "H":
-      case "V":
-        if (paramCount == 0)
-          throw new Error("Parameter needed 0 for command ".concat(cmdChar));
-        while (j < m) {
-          if (j > 1) s.push(" ");
-          s.push(this.toFixedCoord(command[j++]));
-        }
-        break;
-      case "Z":
-        if (paramCount != 0)
-          throw new Error("Parameter count should be 0 for command ".concat(
-              cmdChar, " but was ", paramCount));
-        break;
-      case "A":
-        while (j < m) {
-          if (j > 1) s.push(" ");
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(" ");
-          s.push(this.toFixedAngle(command[j++]));
-          s.push(" ");
-          s.push(command[j++] ? 1 : 0);
-          s.push(" ");
-          s.push(command[j++] ? 1 : 0);
-          s.push(" ");
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
-        }
-        break;
-      default:
-        throw new Error("Unsupported path command. command=" + cmdChar);
-      }
-    }
-    return s.join("");
-  }
-
-  function formatTransform(transforms) {
-    var s = [];
-    for (var i = 0, n = transforms.length; i < n; i++) {
-      var transform = transforms[i];
-      s.push(transform[0].concat("(", transform.slice(1), ")"));
-    }
-    return s.join(" ");
-  }
-
-  function rotateThenTranslateTransform(cx, cy, angle) {
-    var t = [];
-    t.push(["translate", cx, cy]);
-    if (angle)
-      t.push(["rotate", angle]);
-    return formatTransform(t);
   }
 
   function deg2rad(degree) {
