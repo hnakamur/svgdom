@@ -38,6 +38,9 @@ var svgdom = (function() {
     this.node = node;
   }
 
+  var theManipulator = new Manipulator(),
+      proto = Manipulator.prototype;
+
   function mixin(dest /* , sources */) {
     for (var i = 1, n = arguments.length; i < n; i++) {
       var src = arguments[i];
@@ -47,7 +50,6 @@ var svgdom = (function() {
     return dest;
   }
 
-  var proto = Manipulator.prototype;
   mixin(proto, {
     mixin: mixin,
     extendPrototype: function(extensions) {
