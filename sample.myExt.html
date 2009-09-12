@@ -1,16 +1,15 @@
 <html>
 <head>
-<title>kozwER</title>
+<title>my sample extension of svgdom</title>
 <script src="../svgweb/src/svg.js" data-path="../svgweb/src/"></script>
 <script src="svgdom.js"></script>
 <script src="svgdom.myExt.js"></script>
 <script>
 window.onload = function() {
-  var M = svgdom,
-      X = M.myExt;
+  var M = svgdom;
 
   M.byId("svg1").append(
-    X.GenericLine([
+    M.newGenericLine([
       ["M", 20, 160],
       ["Q", 30, 140, 80, 120],
       ["l", 40, 0],
@@ -28,6 +27,7 @@ window.onload = function() {
 </style>
 </head>
 <body>
+  <h1>my sample extension of svgdom</h1>
   <script type="image/svg+xml">
     <svg id="svg1" width="300" height="200" style="border: 1px solid black;">
     </svg>

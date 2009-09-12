@@ -47,12 +47,28 @@ var svgdom = (function() {
     return dest;
   }
 
-  mixin(Manipulator.prototype, {
+  var proto = Manipulator.prototype;
+  mixin(proto, {
     mixin: mixin,
-    byId: byId,
-    Fragment: Fragment,
-    Element: Element,
-    TextNode: (isIE ? function TextNodeIE(text) {
+    extendPrototype: function(extensions) {
+      return this.mixin(proto, extensions);
+    },
+    createManipulator: function(node) { return new Manipulator(node); },
+    byId: function(id) {
+      var elem = document.getElementById(id);
+      return elem && this.createManipulator(elem);
+    },
+    newFragment: function() {
+      // To create a DocumentFragment for use with SVG, you should call
+      // document.createDocumentFragment(true). Note the extra true parameter --
+      // this is required by SVG Web to help us know that this DocumentFragment
+      // will be used with SVG, possibly going into our fake Flash backend.
+      return this.createManipulator(document.createDocumentFragment(true));
+    },
+    newElement: function(type) {
+      return this.createManipulator(document.createElementNS(svgns, type));
+    },
+    newTextNode: (isIE ? function(text) {
       // On Internet Explorer, DOM text nodes created through
       // document.createTextNode with the second argument given as 'true':
       //
@@ -61,27 +77,27 @@ var svgdom = (function() {
       // will have a .style property on them as an artifact of how we support
       // various things internally. Changing this will have no affect.
       // Technically DOM text nodes should not have a .style property.
-      return new Manipulator(document.createTextNode(text, true));
-    } : function TextNode(text) {
-      return new Manipulator(document.createTextNode(text));
+      return this.createManipulator(document.createTextNode(text, true));
+    } : function(text) {
+      return this.createManipulator(document.createTextNode(text));
     }),
 
-    append: function append() {
+    append: function() {
       for (var i = 0, len = arguments.length; i < len; i++)
         this.node.appendChild(arguments[i].node);
       return this;
     },
-    setAttr: function setAttr(attributes) {
+    setAttr: function(attributes) {
       for (var k in attributes)
         this.node.setAttribute(k, attributes[k]);
       return this;
     },
-    setAttrNS: function setAttrNS(ns, attributes) {
+    setAttrNS: function(ns, attributes) {
       for (var k in attributes)
         this.node.setAttributeNS(ns, k, attributes[k]);
       return this;
     },
-    getAttr: function getAttr(names) {
+    getAttr: function(names) {
       var ret = {};
       for (var i = 0, len = names.length; i < len; i++) {
         var name = names[i];
@@ -89,7 +105,7 @@ var svgdom = (function() {
       }
       return ret;
     },
-    getAttrNS: function getAttrNS(ns, names) {
+    getAttrNS: function(ns, names) {
       var ret = {};
       for (var i = 0, len = names.length; i < len; i++) {
         var name = names[i];
@@ -98,7 +114,7 @@ var svgdom = (function() {
       return ret;
     },
 
-    formatPath: function formatPath(commands) {
+    formatPath: function(commands) {
       var coordSeparator = this.coordSeparator,
           s = [];
       for (var i = 0, n = commands.length; i < n; i++) {
@@ -198,7 +214,7 @@ var svgdom = (function() {
      * Return point {x, y} of path
      * at parametricDistance (0 to 1).
      */
-    getPointOnPathAt: function getPointOnPathAt(parametricDistance) {
+    getPointOnPathAt: function(parametricDistance) {
       var node = this.node;
       return node.getPointAtLength(node.getTotalLength() * parametricDistance);
     },
@@ -207,7 +223,7 @@ var svgdom = (function() {
      * Return tangent info {x, y, angle} to path
      * at parametricDistance (0 to 1).
      */
-    getTangentToPathAt: function getTangentToPathAt(parametricDistance) {
+    getTangentToPathAt: function(parametricDistance) {
       var node = this.node,
           d = node.getTotalLength(),
           p0 = node.getPointAtLength(d * parametricDistance),
@@ -231,7 +247,7 @@ var svgdom = (function() {
     },
     tangentEpsilon: 1e-4,
 
-    formatTransform: function formatTransform(transforms) {
+    formatTransform: function(transforms) {
       var s = [];
       for (var i = 0, n = transforms.length; i < n; i++) {
         var transform = transforms[i];
@@ -240,7 +256,7 @@ var svgdom = (function() {
       return s.join(" ");
     },
 
-    rotateThenTranslateTransform: function rotateThenTranslateTransform(cx, cy, angle) {
+    rotateThenTranslateTransform: function(cx, cy, angle) {
       var t = [];
       t.push(["translate", this.toFixedCoord(cx), this.toFixedCoord(cy)]);
       if (angle)
@@ -250,40 +266,31 @@ var svgdom = (function() {
 
     toFixed: toFixed,
 
-    toFixedCoord: function toFixedCoord(value) {
+    toFixedCoord: function(value) {
       return toFixed(value, this.coordFloatDigits);
     },
     coordFloatDigits: 2,
 
-    toFixedAngle: function toFixedAngle(value) {
+    toFixedAngle: function(value) {
       return toFixed(value, this.angleFloatDigits);
     },
     angleFloatDigits: 2,
 
+    curry: function(fn) {
+      var _this = this, args = $A.call(arguments, 1);
+      return function() {
+        return fn.apply(_this, args.concat($A.call(arguments)));
+      }
+    },
+
     deg2rad: deg2rad,
     rad2deg: rad2deg,
 
-    curry: curry,
     camelize: camelize,
     hyphenize: hyphenize
   });
 
-  function byId(id) {
-    var elem = document.getElementById(id);
-    return elem && new Manipulator(elem);
-  }
-  function Fragment() {
-    // To create a DocumentFragment for use with SVG, you should call
-    // document.createDocumentFragment(true). Note the extra true parameter --
-    // this is required by SVG Web to help us know that this DocumentFragment
-    // will be used with SVG, possibly going into our fake Flash backend.
-    return new Manipulator(document.createDocumentFragment(true));
-  }
-  function Element(type) {
-    return new Manipulator(document.createElementNS(svgns, type));
-  }
-
-  Manipulator.prototype.SVG = curry(Element, "SVG");
+  proto.newSVG = proto.curry(proto.newElement, "SVG");
   var types = [
     "g", "defs", "desc", "title", "metadata", "symbol",
     "use", "switch", "image", "style",
@@ -297,7 +304,7 @@ var svgdom = (function() {
   ];
   for (var i = 0, len = types.length; i < len; i++) {
     var type = types[i];
-    Manipulator.prototype[camelize(type, true)] = curry(Element, type);
+    proto["new" + camelize(type, true)] = proto.curry(proto.newElement, type);
   }
 
   function toFixed(value, floatDigits) {
@@ -317,13 +324,6 @@ var svgdom = (function() {
 
   function rad2deg(radian) {
     return 180 / Math.PI * radian;
-  }
-
-  function curry(fn) {
-    var _this = this, args = $A.call(arguments, 1);
-    return function() {
-      return fn.apply(_this, args.concat($A.call(arguments)));
-    }
   }
 
   function camelize(name, firstCapital) {
