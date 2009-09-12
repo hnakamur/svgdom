@@ -216,16 +216,16 @@ var svgdom = (function() {
      * Return point {x, y} of path
      * at parametricDistance (0 to 1).
      */
-    getPointOnPathAt: function(parametricDistance) {
+    getPointOnPathAt: (isIE ? undefined : function(parametricDistance) {
       var node = this.node;
       return node.getPointAtLength(node.getTotalLength() * parametricDistance);
-    },
+    }),
 
     /*
      * Return tangent info {x, y, angle} to path
      * at parametricDistance (0 to 1).
      */
-    getTangentToPathAt: function(parametricDistance) {
+    getTangentToPathAt: (isIE ? undefined : function(parametricDistance) {
       var node = this.node,
           d = node.getTotalLength(),
           p0 = node.getPointAtLength(d * parametricDistance),
@@ -246,7 +246,7 @@ var svgdom = (function() {
         y: p0.y,
         angle: rad2deg(angle)
       };
-    },
+    }),
     tangentEpsilon: 1e-4,
 
     formatTransform: function(transforms) {
