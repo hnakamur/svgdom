@@ -8,32 +8,22 @@
 window.onload = function() {
   var M = svgdom;
 
-  M.byId("svg1").append(
-    M.newGenericLine(
+  M.byId('svg1').append(
+    M.curve(
       [
-        ["M", 20, 160],
-        ["Q", 30, 140, 80, 120],
-        ["l", 40, 0],
-        ["C", 130, 120, 180, 100, 250, 20]
+        ['M', 20, 160],
+        ['Q', 30, 140, 80, 120],
+        ['l', 40, 0],
+        ['C', 130, 120, 180, 100, 250, 20]
       ],
       {
         stroke: 'blue',
-        arrows: {start: {stroke: 'red'}, end: true}
+        arrows: {start: {stroke: 'red'}, end: {}}
       }
     )
   );
 }
 </script>
-<style>
-/*
- * This is just an experiment using style.
- * Note styling are not (yet) supported in svgweb.
- */
-.arrow {
-  stroke: blue;
-  fill: none;
-}
-</style>
 </head>
 <body>
   <h1>my sample extension of svgdom</h1>

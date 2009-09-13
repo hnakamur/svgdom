@@ -1,27 +1,25 @@
-svgdom.extendPrototype((function() {
-  function newGenericLine(pathElements, options) {
-    var config = this.mixin({}, newGenericLine.defaults, options);
+svgdom.mixin(svgdom, (function(M) {
+  function curve(pathElements, options) {
+    var config = M.mixin({}, curve.defaults, options);
     var arrowsOptions = config && config.arrows;
         arrowAtStart = arrowsOptions && arrowsOptions.start,
         arrowAtEnd = arrowsOptions && arrowsOptions.end,
-        ret = path = this.newPath().setAttr(this.mixin({
-          "class": "genericLine",
-          d: this.formatPath(pathElements),
-          fill: "none"
-        }, config));
+        ret = path = M.path(M.mixin({
+          d: M.formatPath(pathElements),
+        }, M.filterOut(config, "arrows")));
 
     if (arrowAtStart || arrowAtEnd) {
-      ret = this.newG();
+      ret = M.g();
       ret.append(path);
       if (path.getTangentToPathAt) {
         if (arrowAtStart) {
           var t0 = path.getTangentToPathAt(0);
-          ret.append(this.newArrow(t0.x, t0.y, t0.angle + 180, arrowAtStart));
+          ret.append(arrow(t0.x, t0.y, t0.angle + 180, arrowAtStart));
         }
 
         if (arrowAtEnd) {
           var t1 = path.getTangentToPathAt(1);
-          ret.append(this.newArrow(t1.x, t1.y, t1.angle, arrowAtEnd));
+          ret.append(arrow(t1.x, t1.y, t1.angle, arrowAtEnd));
         }
       }
       else {
@@ -119,44 +117,50 @@ svgdom.extendPrototype((function() {
         if (arrowAtStart) {
           var p0 = pts[0],
               p1 = pts[1],
-              angle = this.rad2deg(Math.atan2(p0.y - p1.y, p0.x - p1.x));
-          ret.append(this.newArrow(p0.x, p0.y, angle, arrowAtStart));
+              angle = M.geom.rad2deg(Math.atan2(p0.y - p1.y, p0.x - p1.x));
+          ret.append(arrow(p0.x, p0.y, angle, arrowAtStart));
         }
 
         if (arrowAtEnd) {
           var n = pts.length,
               p0 = pts[n - 2],
               p1 = pts[n - 1],
-              angle = this.rad2deg(Math.atan2(p1.y - p0.y, p1.x - p0.x));
-          ret.append(this.newArrow(p1.x, p1.y, angle, arrowAtEnd));
+              angle = M.geom.rad2deg(Math.atan2(p1.y - p0.y, p1.x - p0.x));
+          ret.append(arrow(p1.x, p1.y, angle, arrowAtEnd));
         }
       }
     }
     return ret;
   }
-  newGenericLine.defaults = {};
+  curve.defaults = {
+    "class": "curve",
+    stroke: "#000",
+    fill: "none"
+  };
 
-  function newArrow(x, y, angle, options) {
-    var config = this.mixin({}, newArrow.defaults, options);
+  function arrow(x, y, angle, options) {
+    var config = M.mixin({}, arrow.defaults, options);
     var w = config.arrowLength;
-    var h = w * Math.tan(this.deg2rad(config.arrowAngle / 2));
-    return this.newPath().setAttr(this.mixin({
-      "class": "arrow",
-      d: this.formatPath([
+    var h = w * Math.tan(M.geom.deg2rad(config.arrowAngle / 2));
+    return M.path().setAttr(M.mixin({
+      d: M.formatPath([
         ["M", 0, 0],
         ["l", -w, h, 0, -h * 2],
         ["z"]
       ]),
-      transform: this.rotateThenTranslateTransform(x, y, angle)
-    }, config));
+      transform: M.rotateThenTranslateTransform(x, y, angle)
+    }, M.filterOut(config, "arrowAngle", "arrowLength")));
   }
-  newArrow.defaults = {
+  arrow.defaults = {
+    "class": "arrow",
+    stroke: "#000",
+    fill: "none",
     arrowAngle: 45,
     arrowLength: 10
   };
 
   return {
-    newGenericLine: newGenericLine,
-    newArrow: newArrow
+    curve: curve,
+    arrow: arrow
   };
-})());
+})(svgdom));
