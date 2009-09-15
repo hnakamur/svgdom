@@ -33,7 +33,8 @@ var svgns = 'http://www.w3.org/2000/svg',
       xlink: xlinkns
     },
     userAgent = navigator.userAgent.toLowerCase(),
-    isIE = userAgent.indexOf('msie') >= 0 && usreAgent.indexOf('opera') == -1;
+    isIE = userAgent.indexOf('msie') >= 0 && userAgent.indexOf('opera') == -1,
+    M = Manipulator;
 
 // SVG DOM Manipulator
 function Manipulator(node) {
@@ -353,6 +354,19 @@ mixin(Manipulator.prototype, {
       }
     }
     return ret;
+  },
+  getTextBBox: function() {
+    var node = this.node,
+        n = node.getNumberOfChars(),
+        unionRect = M.geom.unionRect,
+        rect;
+    for (var i = 0; i < n; i++) {
+      if (i == 0)
+        rect = node.getExtentOfChar(i)
+      else
+        rect = unionRect(node.getExtentOfChar(i), rect);
+    }
+    return rect;
   }
 });
 
@@ -484,6 +498,30 @@ Manipulator.geom = (function() {
     return 180 / Math.PI * radian;
   }
 
+  function unionRect(rect1, rect2) {
+    var x1 = Math.min(rect1.x, rect2.x),
+        y1 = Math.min(rect1.y, rect2.y);
+        x2 = Math.max(rect1.x + rect1.width, rect2.x + rect2.width),
+        y2 = Math.max(rect1.y + rect1.height, rect2.y + rect2.height);
+    return {
+      x: x1,
+      y: y1,
+      width: x2 - x1,
+      height: y2 - y1
+    };
+  }
+
+  function insetRect(rect, xOffset, yOffset) {
+    if (yOffset === undefined)
+      yOffset = xOffset;
+    return {
+      x: rect.x + xOffset,
+      y: rect.y + yOffset,
+      width: rect.width - 2 * xOffset,
+      height: rect.height - 2 * yOffset
+    };
+  }
+
   return {
     getPointOnStraightLine: getPointOnStraightLine,
     getPointOnQuadraticBezierCurve: getPointOnQuadraticBezierCurve,
@@ -500,7 +538,10 @@ Manipulator.geom = (function() {
 
     normalizeDegree: normalizeDegree,
     deg2rad: deg2rad,
-    rad2deg: rad2deg
+    rad2deg: rad2deg,
+
+    unionRect: unionRect,
+    insetRect: insetRect
   }
 }());
 
