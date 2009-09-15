@@ -10,14 +10,12 @@ svgdom.mixin(svgdom.Element.prototype, (function() {
     var arrowsOptions = config && config.arrows;
         arrowAtStart = arrowsOptions && arrowsOptions.start,
         arrowAtEnd = arrowsOptions && arrowsOptions.end,
-        ret = path = this.path(mixin({
+        parentElem = arrowAtStart || arrowAtEnd ? this.g() : this,
+        path = parentElem.path(mixin({
           d: this.formatPath(pathElements),
         }, filterOut(config, "arrows")));
 
     if (arrowAtStart || arrowAtEnd) {
-      ret = this.g();
-      ret.append(path);
-
       // This is temporary lousy implementation (especially for arc pathSeg)
       // and should be deleted when SVGPathElement.getTotalLength() and
       // SVGPathElement.getPointAtLength() are implemented in svgweb.
@@ -113,7 +111,7 @@ svgdom.mixin(svgdom.Element.prototype, (function() {
         var p0 = pts[0],
             p1 = pts[1],
             angle = rad2deg(Math.atan2(p0.y - p1.y, p0.x - p1.x));
-        ret.append(this.arrow(p0.x, p0.y, angle, arrowAtStart));
+        parentElem.arrow(p0.x, p0.y, angle, arrowAtStart);
       }
 
       if (arrowAtEnd) {
@@ -121,10 +119,14 @@ svgdom.mixin(svgdom.Element.prototype, (function() {
             p0 = pts[n - 2],
             p1 = pts[n - 1],
             angle = rad2deg(Math.atan2(p1.y - p0.y, p1.x - p0.x));
-        ret.append(this.arrow(p1.x, p1.y, angle, arrowAtEnd));
+        parentElem.arrow(p1.x, p1.y, angle, arrowAtEnd);
       }
+
+      return parentElem;
     }
-    return ret;
+    else {
+      return path;
+    }
   }
   curve.defaults = {
     "class": "curve",
@@ -136,7 +138,7 @@ svgdom.mixin(svgdom.Element.prototype, (function() {
     var config = mixin({}, arrow.defaults, options);
     var w = config.arrowLength;
     var h = w * Math.tan(deg2rad(config.arrowAngle / 2));
-    return this.path().setAttr(mixin({
+    return this.path(mixin({
       d: this.formatPath([
         ["M", 0, 0],
         ["l", -w, h, 0, -h * 2],

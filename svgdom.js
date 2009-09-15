@@ -121,6 +121,7 @@ mixin(Element, {
 
 // Element 'instance' methods.
 mixin(Element.prototype, {
+  curry: curry,
   fragment: function() {
     // To create a DocumentFragment for use with SVG, you should call
     // document.createDocumentFragment(true). Note the extra true parameter --
@@ -129,9 +130,53 @@ mixin(Element.prototype, {
     return create(document.createDocumentFragment(true));
   },
 
-  element: function(type, attributes) {
-    return create(document.createElementNS(svgns, type)).setAttr(attributes);
+  element: function(type, attr) {
+    var child = create(document.createElementNS(svgns, type)).setAttr(attr);
+    this.append(child);
+    return child;
   },
+  svg: function(attr) { return this.element('svg', attr); },
+  g: function(attr) { return this.element('g', attr); },
+  defs: function(attr) { return this.element('defs', attr); },
+  desc: function(attr) { return this.element('desc', attr); },
+  title: function(attr) { return this.element('title', attr); },
+  metadata: function(attr) { return this.element('metadata', attr); },
+  symbol: function(attr) { return this.element('symbol', attr); },
+  use: function(attr) { return this.element('use', attr); },
+  switch_: function(attr) { return this.element('switch', attr); },
+  image: function(attr) { return this.element('image', attr); },
+  style: function(attr) { return this.element('style', attr); },
+  path: function(attr) { return this.element('path', attr); },
+  rect: function(attr) { return this.element('rect', attr); },
+  circle: function(attr) { return this.element('circle', attr); },
+  ellipse: function(attr) { return this.element('ellipse', attr); },
+  line: function(attr) { return this.element('line', attr); },
+  polyline: function(attr) { return this.element('polyline', attr); },
+  polygon: function(attr) { return this.element('polygon', attr); },
+  text: function(attr) { return this.element('text', attr); },
+  tspan: function(attr) { return this.element('tspan', attr); },
+  tref: function(attr) { return this.element('tref', attr); },
+  textPath: function(attr) { return this.element('textPath', attr); },
+  marker: function(attr) { return this.element('marker', attr); },
+  colorProfile: function(attr) { return this.element('color-profile', attr); },
+  clipPath: function(attr) { return this.element('clipPath', attr); },
+  filter: function(attr) { return this.element('filter', attr); },
+  cursor: function(attr) { return this.element('cursor', attr); },
+  a: function(attr) { return this.element('a', attr); },
+  view: function(attr) { return this.element('view', attr); },
+  script: function(attr) { return this.element('script', attr); },
+  animate: function(attr) { return this.element('animate', attr); },
+  set: function(attr) { return this.element('set', attr); },
+  animateMotion: function(attr) { return this.element('animateMotion', attr); },
+  animateColor: function(attr) { return this.element('animateColor', attr); },
+  animateTransform: function(attr) { return this.element('animateTransform', attr); },
+  font: function(attr) { return this.element('font', attr); },
+  glyph: function(attr) { return this.element('glyph', attr); },
+  missingGlyph: function(attr) { return this.element('missing-glyph', attr); },
+  hkern: function(attr) { return this.element('hkern', attr); },
+  vkern: function(attr) { return this.element('vkern', attr); },
+  fontFace: function(attr) { return this.element('font-face', attr); },
+  metadata: function(attr) { return this.element('metadata', attr); },
 
   textNode: (isIE ? function textNodeIE(text) {
     // On Internet Explorer, DOM text nodes created through
@@ -142,9 +187,13 @@ mixin(Element.prototype, {
     // will have a .style property on them as an artifact of how we support
     // various things internally. Changing this will have no affect.
     // Technically DOM text nodes should not have a .style property.
-    return create(document.createTextNode(text, true));
+    var child = create(document.createTextNode(text, true));
+    this.append(child);
+    return child;
   } : function textNode(text) {
-    return create(document.createTextNode(text));
+    var child = create(document.createTextNode(text));
+    this.append(child);
+    return child;
   }),
 
   coordSeparator: ',',
@@ -335,22 +384,22 @@ mixin(Element.prototype, {
   }
 });
 
-var elementTypes = [
-  'svg', 'g', 'defs', 'desc', 'title', 'metadata', 'symbol',
-  'use', 'switch', 'image', 'style',
-  'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon',
-  'text', 'tspan', 'tref', 'textPath',
-  'marker', 'color-profile', 'clipPath', 'filter', 'cursor',
-  'a', 'view', 'script',
-  'animate', 'set', 'animateMotion', 'animateColor', 'animateTransform',
-  'font', 'glyph', 'missing-glyph', 'hkern', 'vkern', 'font-face',
-  'metadata'
-];
-for (var i = 0, len = elementTypes.length; i < len; i++) {
-  var type = elementTypes[i];
-  Element.prototype[camelize(type)] =
-      curry(Element.prototype.element, type);
-}
+//var elementTypes = [
+//  'svg', 'g', 'defs', 'desc', 'title', 'metadata', 'symbol',
+//  'use', 'switch', 'image', 'style',
+//  'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon',
+//  'text', 'tspan', 'tref', 'textPath',
+//  'marker', 'color-profile', 'clipPath', 'filter', 'cursor',
+//  'a', 'view', 'script',
+//  'animate', 'set', 'animateMotion', 'animateColor', 'animateTransform',
+//  'font', 'glyph', 'missing-glyph', 'hkern', 'vkern', 'font-face',
+//  'metadata'
+//];
+//for (var i = 0, len = elementTypes.length; i < len; i++) {
+//  var type = elementTypes[i];
+//  Element.prototype[camelize(type)] =
+//      Element.prototype.curry.call(Element.prototype.element, type);
+//}
 
 
 // geom module functions.
