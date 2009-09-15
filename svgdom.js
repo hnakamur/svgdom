@@ -33,185 +33,41 @@ var svgns = 'http://www.w3.org/2000/svg',
       xlink: xlinkns
     },
     userAgent = navigator.userAgent.toLowerCase(),
-    isIE = userAgent.indexOf('msie') >= 0 && userAgent.indexOf('opera') == -1,
-    M = Manipulator;
+    isIE = userAgent.indexOf('msie') >= 0 && userAgent.indexOf('opera') == -1;
 
-// SVG DOM Manipulator
-function Manipulator(node) {
-  this.node = node;
-}
-
-function create(node) { return new Manipulator(node); }
-
-function byId(id) {
-  var elem = document.getElementById(id);
-  return elem && create(elem);
-}
-
-function fragment() {
-  // To create a DocumentFragment for use with SVG, you should call
-  // document.createDocumentFragment(true). Note the extra true parameter --
-  // this is required by SVG Web to help us know that this DocumentFragment
-  // will be used with SVG, possibly going into our fake Flash backend.
-  return create(document.createDocumentFragment(true));
-}
-
-function element(type, attributes) {
-  return create(document.createElementNS(svgns, type)).setAttr(attributes);
-}
-
-var textNode = (isIE ? function textNodeIE(text) {
-  // On Internet Explorer, DOM text nodes created through
-  // document.createTextNode with the second argument given as 'true':
-  //
-  // document.createTextNode('some text', true)
-  //
-  // will have a .style property on them as an artifact of how we support
-  // various things internally. Changing this will have no affect.
-  // Technically DOM text nodes should not have a .style property.
-  return create(document.createTextNode(text, true));
-} : function textNode(text) {
-  return create(document.createTextNode(text));
-});
-
-var coordSeparator = ',';
-
-function formatPath(commands) {
-  var s = [];
-  for (var i = 0, n = commands.length; i < n; i++) {
-    var command = commands[i],
-        cmdChar = command[0],
-        m = command.length,
-        j = 1,
-        paramCount = m - j;
-    s.push(cmdChar);
-    switch (cmdChar.toUpperCase()) {
-    case 'M':
-    case 'L':
-    case 'T':
-      if (paramCount == 0 || paramCount % 2)
-        throw new Error('Parameter count should be 2 * n (n >= 1) for command '.concat(cmdChar, ' but was ', paramCount));
-      while (j < m) {
-        if (j > 1) s.push(' ');
-        s.push(toFixedCoord(command[j++]));
-        s.push(coordSeparator);
-        s.push(toFixedCoord(command[j++]));
-      }
-      break;
-    case 'S':
-    case 'Q':
-      if (paramCount == 0 || paramCount % 4)
-        throw new Error('Parameter count should be 4 * n (n >= 1) for command '.concat(cmdChar, ' but was ', paramCount));
-      while (j < m) {
-        if (j > 1) s.push(' ');
-        s.push(toFixedCoord(command[j++]));
-        s.push(coordSeparator);
-        s.push(toFixedCoord(command[j++]));
-        s.push(' ');
-        s.push(toFixedCoord(command[j++]));
-        s.push(coordSeparator);
-        s.push(toFixedCoord(command[j++]));
-      }
-      break;
-    case 'C':
-      if (paramCount == 0 || paramCount % 6)
-        throw new Error('Parameter count should be 6 * n (n >= 1) for command '.concat(cmdChar, ' but was ', paramCount));
-      while (j < m) {
-        if (j > 1) s.push(' ');
-        s.push(toFixedCoord(command[j++]));
-        s.push(coordSeparator);
-        s.push(toFixedCoord(command[j++]));
-        s.push(' ');
-        s.push(toFixedCoord(command[j++]));
-        s.push(coordSeparator);
-        s.push(toFixedCoord(command[j++]));
-        s.push(' ');
-        s.push(toFixedCoord(command[j++]));
-        s.push(coordSeparator);
-        s.push(toFixedCoord(command[j++]));
-      }
-      break;
-    case 'H':
-    case 'V':
-      if (paramCount == 0)
-        throw new Error('Parameter needed 0 for command '.concat(cmdChar));
-      while (j < m) {
-        if (j > 1) s.push(' ');
-        s.push(toFixedCoord(command[j++]));
-      }
-      break;
-    case 'Z':
-      if (paramCount != 0)
-        throw new Error('Parameter count should be 0 for command '.concat(
-            cmdChar, ' but was ', paramCount));
-      break;
-    case 'A':
-      while (j < m) {
-        if (j > 1) s.push(' ');
-        s.push(toFixedCoord(command[j++]));
-        s.push(coordSeparator);
-        s.push(toFixedCoord(command[j++]));
-        s.push(' ');
-        s.push(toFixedAngle(command[j++]));
-        s.push(' ');
-        s.push(bool2flag(command[j++]));
-        s.push(' ');
-        s.push(bool2flag(command[j++]));
-        s.push(' ');
-        s.push(toFixedCoord(command[j++]));
-        s.push(coordSeparator);
-        s.push(toFixedCoord(command[j++]));
-      }
-      break;
-    default:
-      throw new Error('Unsupported path command. command=' + cmdChar);
-    }
+function mixin(dest /* , sources */) {
+  for (var i = 1, n = arguments.length; i < n; i++) {
+    var src = arguments[i];
+    for (var k in src)
+      dest[k] = src[k];
   }
-  return s.join('');
+  return dest;
 }
 
-function formatTransform(transforms) {
-  var s = [];
-  for (var i = 0, n = transforms.length; i < n; i++) {
-    var transform = transforms[i];
-    s.push(transform[0].concat('(', transform.slice(1), ')'));
+function curry(fn) {
+  var _this = this, args = Array.prototype.slice.call(arguments, 1);
+  return function() {
+    return fn.apply(_this, args.concat(Array.prototype.slice.call(arguments)));
   }
-  return s.join(' ');
 }
 
-function rotateThenTranslateTransform(cx, cy, angle) {
-  var t = [];
-  t.push(['translate', toFixedCoord(cx), toFixedCoord(cy)]);
-  if (angle)
-    t.push(['rotate', toFixedAngle(angle)]);
-  return formatTransform(t);
-}
-
-function toFixed(value, floatDigits) {
-  var s = value.toFixed(floatDigits),
-      dotPos = s.indexOf('.');
-  if (dotPos == -1) return s;
-  for (var i = s.length - 1; i >= dotPos; i--) {
-    var c = s.charAt(i);
-    if (c != '0' && c != '.') break;
+function filterOut(obj /* , excludes */) {
+  var ret = {},
+      excludeMap = identityMap(Array.prototype.slice.call(arguments, 1));
+  for (var k in obj) {
+    if (!(k in excludeMap))
+      ret[k] = obj[k];
   }
-  return s.substr(0, i + 1);
+  return ret;
 }
 
-var coordFloatDigits = 2;
-
-function toFixedCoord(value) {
-  return isNaN(value) ? value : toFixed(value, coordFloatDigits);
-}
-
-var angleFloatDigits = 2;
-
-function toFixedAngle(value) {
-  return isNaN(value) ? value : toFixed(value, angleFloatDigits);
-}
-
-function bool2flag(value) {
-  return value ? 1 : 0;
+function identityMap(keys) {
+  var ret = {};
+  for (var i = 0, n = keys.length; i < n; i++) {
+    var key = keys[i];
+    ret[key] = key;
+  }
+  return ret;
 }
 
 function camelize(name, firstCapital) {
@@ -246,82 +102,191 @@ function hyphenize(name) {
   return chars.join('');
 }
 
-function curry(fn) {
-  var _this = this, args = Array.prototype.slice.call(arguments, 1);
-  return function() {
-    return fn.apply(_this, args.concat(Array.prototype.slice.call(arguments)));
-  }
+// SVG DOM Element
+function Element(node) {
+  this.node = node;
 }
 
-function mixin(dest /* , sources */) {
-  for (var i = 1, n = arguments.length; i < n; i++) {
-    var src = arguments[i];
-    for (var k in src)
-      dest[k] = src[k];
-  }
-  return dest;
+function create(node) { return new Element(node); }
+
+function byId(id) {
+  var elem = document.getElementById(id);
+  return elem && create(elem);
 }
 
-function filterOut(obj /* , excludes */) {
-  var ret = {},
-      excludeMap = identityMap(Array.prototype.slice.call(arguments, 1));
-  for (var k in obj) {
-    if (!(k in excludeMap))
-      ret[k] = obj[k];
-  }
-  return ret;
-}
-
-function identityMap(keys) {
-  var ret = {};
-  for (var i = 0, n = keys.length; i < n; i++) {
-    var key = keys[i];
-    ret[key] = key;
-  }
-  return ret;
-}
-
-mixin(Manipulator, {
+mixin(Element, {
   create: create,
-  byId: byId,
-  fragment: fragment,
-  element: element,
-  textNode: textNode,
-  coordSeparator: coordSeparator,
-  formatPath: formatPath,
-  formatTransform: formatTransform,
-  rotateThenTranslateTransform: rotateThenTranslateTransform,
-  toFixed: toFixed,
-  coordFloatDigits: coordFloatDigits,
-  toFixedCoord: toFixedCoord,
-  angleFloatDigits: angleFloatDigits,
-  toFixedAngle: toFixedAngle,
-  bool2flag: bool2flag,
-  mixin: mixin,
-  filterOut: filterOut,
-  curry: curry,
-  camelize: camelize,
-  hyphenize: hyphenize
+  byId: byId
 });
 
-var elementTypes = [
-  'svg', 'g', 'defs', 'desc', 'title', 'metadata', 'symbol',
-  'use', 'switch', 'image', 'style',
-  'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon',
-  'text', 'tspan', 'tref', 'textPath',
-  'marker', 'color-profile', 'clipPath', 'filter', 'cursor',
-  'a', 'view', 'script',
-  'animate', 'set', 'animateMotion', 'animateColor', 'animateTransform',
-  'font', 'glyph', 'missing-glyph', 'hkern', 'vkern', 'font-face',
-  'metadata'
-];
-for (var i = 0, len = elementTypes.length; i < len; i++) {
-  var type = elementTypes[i];
-  Manipulator[camelize(type)] = curry(element, type);
-}
+// Element 'instance' methods.
+mixin(Element.prototype, {
+  fragment: function() {
+    // To create a DocumentFragment for use with SVG, you should call
+    // document.createDocumentFragment(true). Note the extra true parameter --
+    // this is required by SVG Web to help us know that this DocumentFragment
+    // will be used with SVG, possibly going into our fake Flash backend.
+    return create(document.createDocumentFragment(true));
+  },
 
-// Manipulator 'instance' methods.
-mixin(Manipulator.prototype, {
+  element: function(type, attributes) {
+    return create(document.createElementNS(svgns, type)).setAttr(attributes);
+  },
+
+  textNode: (isIE ? function textNodeIE(text) {
+    // On Internet Explorer, DOM text nodes created through
+    // document.createTextNode with the second argument given as 'true':
+    //
+    // document.createTextNode('some text', true)
+    //
+    // will have a .style property on them as an artifact of how we support
+    // various things internally. Changing this will have no affect.
+    // Technically DOM text nodes should not have a .style property.
+    return create(document.createTextNode(text, true));
+  } : function textNode(text) {
+    return create(document.createTextNode(text));
+  }),
+
+  coordSeparator: ',',
+
+  formatPath: function(commands) {
+    var s = [];
+    for (var i = 0, n = commands.length; i < n; i++) {
+      var command = commands[i],
+          cmdChar = command[0],
+          m = command.length,
+          j = 1,
+          paramCount = m - j;
+      s.push(cmdChar);
+      switch (cmdChar.toUpperCase()) {
+      case 'M':
+      case 'L':
+      case 'T':
+        if (paramCount == 0 || paramCount % 2)
+          throw new Error('Parameter count should be 2 * n (n >= 1) for command '.concat(cmdChar, ' but was ', paramCount));
+        while (j < m) {
+          if (j > 1) s.push(' ');
+          s.push(this.toFixedCoord(command[j++]));
+          s.push(this.coordSeparator);
+          s.push(this.toFixedCoord(command[j++]));
+        }
+        break;
+      case 'S':
+      case 'Q':
+        if (paramCount == 0 || paramCount % 4)
+          throw new Error('Parameter count should be 4 * n (n >= 1) for command '.concat(cmdChar, ' but was ', paramCount));
+        while (j < m) {
+          if (j > 1) s.push(' ');
+          s.push(this.toFixedCoord(command[j++]));
+          s.push(this.coordSeparator);
+          s.push(this.toFixedCoord(command[j++]));
+          s.push(' ');
+          s.push(this.toFixedCoord(command[j++]));
+          s.push(this.coordSeparator);
+          s.push(this.toFixedCoord(command[j++]));
+        }
+        break;
+      case 'C':
+        if (paramCount == 0 || paramCount % 6)
+          throw new Error('Parameter count should be 6 * n (n >= 1) for command '.concat(cmdChar, ' but was ', paramCount));
+        while (j < m) {
+          if (j > 1) s.push(' ');
+          s.push(this.toFixedCoord(command[j++]));
+          s.push(this.coordSeparator);
+          s.push(this.toFixedCoord(command[j++]));
+          s.push(' ');
+          s.push(this.toFixedCoord(command[j++]));
+          s.push(this.coordSeparator);
+          s.push(this.toFixedCoord(command[j++]));
+          s.push(' ');
+          s.push(this.toFixedCoord(command[j++]));
+          s.push(this.coordSeparator);
+          s.push(this.toFixedCoord(command[j++]));
+        }
+        break;
+      case 'H':
+      case 'V':
+        if (paramCount == 0)
+          throw new Error('Parameter needed 0 for command '.concat(cmdChar));
+        while (j < m) {
+          if (j > 1) s.push(' ');
+          s.push(this.toFixedCoord(command[j++]));
+        }
+        break;
+      case 'Z':
+        if (paramCount != 0)
+          throw new Error('Parameter count should be 0 for command '.concat(
+              cmdChar, ' but was ', paramCount));
+        break;
+      case 'A':
+        while (j < m) {
+          if (j > 1) s.push(' ');
+          s.push(this.toFixedCoord(command[j++]));
+          s.push(this.coordSeparator);
+          s.push(this.toFixedCoord(command[j++]));
+          s.push(' ');
+          s.push(this.toFixedAngle(command[j++]));
+          s.push(' ');
+          s.push(this.bool2flag(command[j++]));
+          s.push(' ');
+          s.push(this.bool2flag(command[j++]));
+          s.push(' ');
+          s.push(this.toFixedCoord(command[j++]));
+          s.push(this.coordSeparator);
+          s.push(this.toFixedCoord(command[j++]));
+        }
+        break;
+      default:
+        throw new Error('Unsupported path command. command=' + cmdChar);
+      }
+    }
+    return s.join('');
+  },
+
+  formatTransform: function(transforms) {
+    var s = [];
+    for (var i = 0, n = transforms.length; i < n; i++) {
+      var transform = transforms[i];
+      s.push(transform[0].concat('(', transform.slice(1), ')'));
+    }
+    return s.join(' ');
+  },
+
+  rotateThenTranslateTransform: function(cx, cy, angle) {
+    var t = [];
+    t.push(['translate', this.toFixedCoord(cx), this.toFixedCoord(cy)]);
+    if (angle)
+      t.push(['rotate', this.toFixedAngle(angle)]);
+    return this.formatTransform(t);
+  },
+
+  toFixed: function(value, floatDigits) {
+    var s = value.toFixed(floatDigits),
+        dotPos = s.indexOf('.');
+    if (dotPos == -1) return s;
+    for (var i = s.length - 1; i >= dotPos; i--) {
+      var c = s.charAt(i);
+      if (c != '0' && c != '.') break;
+    }
+    return s.substr(0, i + 1);
+  },
+
+  coordFloatDigits: 2,
+
+  toFixedCoord: function(value) {
+    return isNaN(value) ? value : this.toFixed(value, this.coordFloatDigits);
+  },
+
+  angleFloatDigits: 2,
+
+  toFixedAngle: function(value) {
+    return isNaN(value) ? value : this.toFixed(value, this.angleFloatDigits);
+  },
+
+  bool2flag: function(value) {
+    return value ? 1 : 0;
+  },
+
   append: function() {
     var node = this.node;
     for (var i = 0, len = arguments.length; i < len; i++)
@@ -358,7 +323,7 @@ mixin(Manipulator.prototype, {
   getTextBBox: function() {
     var node = this.node,
         n = node.getNumberOfChars(),
-        unionRect = M.geom.unionRect,
+        unionRect = geom.unionRect,
         rect;
     for (var i = 0; i < n; i++) {
       if (i == 0)
@@ -370,8 +335,26 @@ mixin(Manipulator.prototype, {
   }
 });
 
+var elementTypes = [
+  'svg', 'g', 'defs', 'desc', 'title', 'metadata', 'symbol',
+  'use', 'switch', 'image', 'style',
+  'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon',
+  'text', 'tspan', 'tref', 'textPath',
+  'marker', 'color-profile', 'clipPath', 'filter', 'cursor',
+  'a', 'view', 'script',
+  'animate', 'set', 'animateMotion', 'animateColor', 'animateTransform',
+  'font', 'glyph', 'missing-glyph', 'hkern', 'vkern', 'font-face',
+  'metadata'
+];
+for (var i = 0, len = elementTypes.length; i < len; i++) {
+  var type = elementTypes[i];
+  Element.prototype[camelize(type)] =
+      curry(Element.prototype.element, type);
+}
+
+
 // geom module functions.
-Manipulator.geom = (function() {
+var geom = (function() {
   var tangentEpsilon = 1e-4;
 
   function getPointOnStraightLine(t, p0, p1) {
@@ -545,6 +528,14 @@ Manipulator.geom = (function() {
   }
 }());
 
-return Manipulator;
+return {
+  Element: Element,
+  mixin: mixin,
+  filterOut: filterOut,
+  curry: curry,
+  camelize: camelize,
+  hyphenize: hyphenize,
+  geom: geom
+};
 
 })();
