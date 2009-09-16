@@ -7,19 +7,17 @@
 <script>
 window.onload = function() {
   var s = svgdom.Element.byId('svg1');
-  s.append(
-    s.curve(
-      [
-        ['M', 20, 160],
-        ['Q', 30, 140, 80, 120],
-        ['l', 40, 0],
-        ['C', 130, 120, 180, 100, 250, 20]
-      ],
-      {
-        stroke: 'blue',
-        arrows: {start: {stroke: 'red'}, end: {}}
-      }
-    )
+  s.curve(
+    [
+      ['M', 20, 160],
+      ['Q', 30, 140, 80, 120],
+      ['l', 40, 0],
+      ['C', 130, 120, 180, 100, 250, 20]
+    ],
+    {
+      stroke: 'blue',
+      arrows: {start: {stroke: 'red'}, end: {}}
+    }
   );
 }
 </script>

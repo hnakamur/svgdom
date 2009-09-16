@@ -5,15 +5,13 @@ svgdom.mixin(svgdom.Element.prototype, (function() {
       rad2deg = geom.rad2deg,
       deg2rad = geom.deg2rad;
 
-  function curve(pathElements, options) {
+  function curve(pathCommands, options) {
     var config = mixin({}, curve.defaults, options);
     var arrowsOptions = config && config.arrows;
         arrowAtStart = arrowsOptions && arrowsOptions.start,
         arrowAtEnd = arrowsOptions && arrowsOptions.end,
         parentElem = arrowAtStart || arrowAtEnd ? this.g() : this,
-        path = parentElem.path(mixin({
-          d: this.formatPath(pathElements),
-        }, filterOut(config, "arrows")));
+        path = parentElem.path(pathCommands, filterOut(config, "arrows"));
 
     if (arrowAtStart || arrowAtEnd) {
       // This is temporary lousy implementation (especially for arc pathSeg)
@@ -106,7 +104,7 @@ svgdom.mixin(svgdom.Element.prototype, (function() {
         return pts;
       }
 
-      var pts = getControlPointsAbs(pathElements);
+      var pts = getControlPointsAbs(pathCommands);
       if (arrowAtStart) {
         var p0 = pts[0],
             p1 = pts[1],
@@ -138,14 +136,14 @@ svgdom.mixin(svgdom.Element.prototype, (function() {
     var config = mixin({}, arrow.defaults, options);
     var w = config.arrowLength;
     var h = w * Math.tan(deg2rad(config.arrowAngle / 2));
-    return this.path(mixin({
-      d: this.formatPath([
+    return this.path(
+      [
         ["M", 0, 0],
         ["l", -w, h, 0, -h * 2],
         ["z"]
-      ]),
-      transform: this.rotateThenTranslateTransform(x, y, angle)
-    }, filterOut(config, "arrowAngle", "arrowLength")));
+      ],
+      mixin({transform: this.rotateThenTranslateTransform(x, y, angle)},
+          filterOut(config, "arrowAngle", "arrowLength")));
   }
   arrow.defaults = {
     "class": "arrow",

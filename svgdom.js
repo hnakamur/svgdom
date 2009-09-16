@@ -146,7 +146,9 @@ mixin(Element.prototype, {
   switch_: function(attr) { return this.element('switch', attr); },
   image: function(attr) { return this.element('image', attr); },
   style: function(attr) { return this.element('style', attr); },
-  path: function(attr) { return this.element('path', attr); },
+  path: function(commands, attr) {
+    return this.element('path', mixin({d: this.formatPath(commands)}, attr));
+  },
   rect: function(attr) { return this.element('rect', attr); },
   circle: function(attr) { return this.element('circle', attr); },
   ellipse: function(attr) { return this.element('ellipse', attr); },
@@ -338,10 +340,22 @@ mixin(Element.prototype, {
 
   append: function() {
     var node = this.node;
-    for (var i = 0, len = arguments.length; i < len; i++)
-      node.appendChild(arguments[i].node);
+    for (var i = 0, len = arguments.length; i < len; i++) {
+      var child = arguments[i];
+      node.appendChild(child.node);
+      child._parent = this;
+    }
     return this;
   },
+
+  parent: function() {
+    if (this._parent !== undefined) return this._parent;
+    if (!this.node) return null;
+    var parentNode = this.node.parentNode;
+    if (!parentNode) return null;
+    return create(parentNode);
+  },
+
   setAttr: function(attributes) {
     var node = this.node;
     for (var k in attributes) {
