@@ -542,6 +542,15 @@ var geom = (function() {
     return 180 / Math.PI * radian;
   }
 
+  function cloneRect(rect) {
+    return {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height
+    };
+  }
+
   function unionRect(rect1, rect2) {
     var x1 = Math.min(rect1.x, rect2.x),
         y1 = Math.min(rect1.y, rect2.y);
@@ -584,6 +593,7 @@ var geom = (function() {
     deg2rad: deg2rad,
     rad2deg: rad2deg,
 
+    cloneRect: cloneRect,
     unionRect: unionRect,
     insetRect: insetRect
   }
