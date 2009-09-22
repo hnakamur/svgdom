@@ -13,19 +13,17 @@ window.onload = function() {
   var s = svgdom.Element.byId('mySVG');
   s.circle({r: 10, cx: 50, cy: 80});
   s.text({x: 20, y: 240}).textNode('A dynamically created text');
-  s.path(
-    [
+  s.path({
+    id: 'path1',
+    d: s.formatPath([
       ['M', 100, 200],
       ['C', 200, 100, 300, 0, 400, 100],
       ['C', 500, 200, 600, 300, 700, 200],
       ['C', 800, 100, 900, 100, 900, 100]
-    ],
-    {
-      id: 'path1',
-      fill: 'none',
-      stroke: 'black'
-    }
-  );
+    ]),
+    fill: 'none',
+    stroke: 'black'
+  });
   s.text().textPath({'xlink:href': '#path1'}).
       textNode('This is a textpath. As of today, it seems textpath is not supported in svgweb.');
 }

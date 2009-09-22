@@ -11,7 +11,9 @@ svgdom.mixin(svgdom.Element.prototype, (function() {
         arrowAtStart = arrowsOptions && arrowsOptions.start,
         arrowAtEnd = arrowsOptions && arrowsOptions.end,
         parentElem = arrowAtStart || arrowAtEnd ? this.g() : this,
-        path = parentElem.path(pathCommands, filterOut(config, "arrows"));
+        path = parentElem.path(mixin({
+          d: this.formatPath(pathCommands)
+        }, filterOut(config, "arrows")));
 
     if (arrowAtStart || arrowAtEnd) {
       // This is temporary lousy implementation (especially for arc pathSeg)
@@ -136,14 +138,14 @@ svgdom.mixin(svgdom.Element.prototype, (function() {
     var config = mixin({}, arrow.defaults, options);
     var w = config.arrowLength;
     var h = w * Math.tan(deg2rad(config.arrowAngle / 2));
-    return this.path(
-      [
+    return this.path(mixin({
+      d: this.formatPath([
         ["M", 0, 0],
         ["l", -w, h, 0, -h * 2],
         ["z"]
-      ],
-      mixin({transform: this.rotateThenTranslateTransform(x, y, angle)},
-          filterOut(config, "arrowAngle", "arrowLength")));
+      ]),
+      transform: this.rotateThenTranslateTransform(x, y, angle)
+    }, filterOut(config, "arrowAngle", "arrowLength")));
   }
   arrow.defaults = {
     "class": "arrow",

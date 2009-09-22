@@ -146,9 +146,7 @@ mixin(Element.prototype, {
   switch_: function(attr) { return this.element('switch', attr); },
   image: function(attr) { return this.element('image', attr); },
   style: function(attr) { return this.element('style', attr); },
-  path: function(commands, attr) {
-    return this.element('path', mixin({d: this.formatPath(commands)}, attr));
-  },
+  path: function(attr) { return this.element('path', attr); },
   rect: function(attr) { return this.element('rect', attr); },
   circle: function(attr) { return this.element('circle', attr); },
   ellipse: function(attr) { return this.element('ellipse', attr); },
