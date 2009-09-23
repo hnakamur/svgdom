@@ -108,6 +108,10 @@ function toRealArray(pseudoArray, fromIndex) {
   return ary;
 }
 
+function isArray(ary) {
+  return Object.prototype.toString.call(ary) == '[object Array]';
+}
+
 // SVG DOM Node wrapper
 function NodeWrapper(node) {
   this.node = node;
@@ -589,6 +593,7 @@ var geom = (function() {
 return {
   NodeWrapper: NodeWrapper,
   mixin: mixin,
+  isArray: isArray,
   filterOut: filterOut,
   toRealArray: toRealArray,
   toMap: toMap,
