@@ -33,10 +33,10 @@ var svgns = 'http://www.w3.org/2000/svg',
       xlink: xlinkns
     },
     userAgent = navigator.userAgent.toLowerCase(),
-    isIE = userAgent.indexOf('msie') >= 0 && userAgent.indexOf('opera') == -1;
+    isIE = userAgent.indexOf('msie') != -1 && userAgent.indexOf('opera') == -1;
 
 function mixin(dest /* , sources */) {
-  for (var i = 1, n = arguments.length; i < n; i++) {
+  for (var i = 1, n = arguments.length; i < n; ++i) {
     var src = arguments[i];
     for (var k in src)
       dest[k] = src[k];
@@ -45,15 +45,16 @@ function mixin(dest /* , sources */) {
 }
 
 function curry(fn) {
-  var _this = this, args = Array.prototype.slice.call(arguments, 1);
+  var _this = this, args = toRealArray(arguments, 1);
   return function() {
-    return fn.apply(_this, args.concat(Array.prototype.slice.call(arguments)));
+    return fn.apply(_this, args.concat(toRealArray(arguments)));
   }
 }
 
 function filterOut(obj /* , excludes */) {
   var ret = {},
-      excludeMap = identityMap(Array.prototype.slice.call(arguments, 1));
+      excludes = toRealArray(arguments, 1);
+      excludeMap = toMap(excludes, excludes);
   for (var k in obj) {
     if (!(k in excludeMap))
       ret[k] = obj[k];
@@ -61,12 +62,10 @@ function filterOut(obj /* , excludes */) {
   return ret;
 }
 
-function identityMap(keys) {
+function toMap(keys, values) {
   var ret = {};
-  for (var i = 0, n = keys.length; i < n; i++) {
-    var key = keys[i];
-    ret[key] = key;
-  }
+  for (var i = 0, n = keys.length; i < n; ++i)
+    ret[keys[i]] = values[i];
   return ret;
 }
 
@@ -102,26 +101,32 @@ function hyphenize(name) {
   return chars.join('');
 }
 
-// SVG DOM Element
-function Element(node) {
+function toRealArray(pseudoArray, fromIndex) {
+  var ary = [];
+  for (var i = fromIndex || 0, n = pseudoArray.length; i < n; ++i)
+    ary.push(pseudoArray[i]);
+  return ary;
+}
+
+// SVG DOM Node wrapper
+function NodeWrapper(node) {
   this.node = node;
 }
 
-function create(node) { return new Element(node); }
+function create(node) { return new NodeWrapper(node); }
 
 function byId(id) {
   var elem = document.getElementById(id);
   return elem && create(elem);
 }
 
-mixin(Element, {
+mixin(NodeWrapper, {
   create: create,
   byId: byId
 });
 
-// Element 'instance' methods.
-mixin(Element.prototype, {
-  curry: curry,
+// NodeWrapper 'instance' methods.
+mixin(NodeWrapper.prototype, {
   fragment: function() {
     // To create a DocumentFragment for use with SVG, you should call
     // document.createDocumentFragment(true). Note the extra true parameter --
@@ -143,7 +148,7 @@ mixin(Element.prototype, {
   metadata: function(attr) { return this.element('metadata', attr); },
   symbol: function(attr) { return this.element('symbol', attr); },
   use: function(attr) { return this.element('use', attr); },
-  switch_: function(attr) { return this.element('switch', attr); },
+  'switch': function(attr) { return this.element('switch', attr); },
   image: function(attr) { return this.element('image', attr); },
   style: function(attr) { return this.element('style', attr); },
   path: function(attr) { return this.element('path', attr); },
@@ -357,7 +362,7 @@ mixin(Element.prototype, {
   setAttr: function(attributes) {
     var node = this.node;
     for (var k in attributes) {
-      if (k.indexOf(':') >= 0) {
+      if (k.indexOf(':') != -1) {
         var parts = k.split(':');
         node.setAttributeNS(namespaces[parts[0]], parts[1], attributes[k]);
       }
@@ -371,7 +376,7 @@ mixin(Element.prototype, {
     var ret = {};
     for (var i = 0, len = arguments.length; i < len; i++) {
       var name = arguments[i];
-      if (name.indexOf(':') >= 0) {
+      if (name.indexOf(':') != -1) {
         var parts = name.split(':');
         ret[name] = node.getAttributeNS(argumentspaces[parts[0]], parts[1]);
       }
@@ -395,24 +400,6 @@ mixin(Element.prototype, {
     return rect;
   }
 });
-
-//var elementTypes = [
-//  'svg', 'g', 'defs', 'desc', 'title', 'metadata', 'symbol',
-//  'use', 'switch', 'image', 'style',
-//  'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon',
-//  'text', 'tspan', 'tref', 'textPath',
-//  'marker', 'color-profile', 'clipPath', 'filter', 'cursor',
-//  'a', 'view', 'script',
-//  'animate', 'set', 'animateMotion', 'animateColor', 'animateTransform',
-//  'font', 'glyph', 'missing-glyph', 'hkern', 'vkern', 'font-face',
-//  'metadata'
-//];
-//for (var i = 0, len = elementTypes.length; i < len; i++) {
-//  var type = elementTypes[i];
-//  Element.prototype[camelize(type)] =
-//      Element.prototype.curry.call(Element.prototype.element, type);
-//}
-
 
 // geom module functions.
 var geom = (function() {
@@ -600,9 +587,11 @@ var geom = (function() {
 }());
 
 return {
-  Element: Element,
+  NodeWrapper: NodeWrapper,
   mixin: mixin,
   filterOut: filterOut,
+  toRealArray: toRealArray,
+  toMap: toMap,
   curry: curry,
   camelize: camelize,
   hyphenize: hyphenize,

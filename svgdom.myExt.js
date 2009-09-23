@@ -1,4 +1,4 @@
-svgdom.mixin(svgdom.Element.prototype, (function() {
+svgdom.mixin(svgdom.NodeWrapper.prototype, (function() {
   var mixin = svgdom.mixin,
       filterOut = svgdom.filterOut,
       geom = svgdom.geom,
