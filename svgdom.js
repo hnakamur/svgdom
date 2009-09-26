@@ -99,396 +99,399 @@ function formatNumber(value, fractionalDigitCount) {
 function NodeWrapper(node) {
   this.node = node;
 }
-mixin(NodeWrapper, {
-  wrap: function(node) { return new NodeWrapper(node); },
-  byId: function(id) {
-    var elem = document.getElementById(id);
-    return elem && NodeWrapper.wrap(elem);
-  },
-  createDocumentFragment: function() {
-    // To create a DocumentFragment for use with SVG, you should call
-    // document.createDocumentFragment(true). Note the extra true parameter --
-    // this is required by SVG Web to help us know that this DocumentFragment
-    // will be used with SVG, possibly going into our fake Flash backend.
-    return NodeWrapper.wrap(document.createDocumentFragment(true));
-  },
-  createElement: function(tagName) {
-    return NodeWrapper.wrap(document.createElementNS(svgns, tagName));
-  },
-  createTextNode: (isIE ? function(text) {
-    // On Internet Explorer, DOM text nodes created through
-    // document.createTextNode with the second argument given as 'true':
-    //
-    // document.createTextNode('some text', true)
-    //
-    // will have a .style property on them as an artifact of how we support
-    // various things internally. Changing this will have no affect.
-    // Technically DOM text nodes should not have a .style property.
-    return NodeWrapper.wrap(document.createTextNode(text, true));
-  } : function(text) {
-    return NodeWrapper.wrap(document.createTextNode(text));
-  }),
+NodeWrapper.wrap = function(node) { return new NodeWrapper(node); };
+NodeWrapper.byId = function(id) {
+  var elem = document.getElementById(id);
+  return elem && NodeWrapper.wrap(elem);
+};
+NodeWrapper.createDocumentFragment = function() {
+  // To create a DocumentFragment for use with SVG, you should call
+  // document.createDocumentFragment(true). Note the extra true parameter --
+  // this is required by SVG Web to help us know that this DocumentFragment
+  // will be used with SVG, possibly going into our fake Flash backend.
+  return NodeWrapper.wrap(document.createDocumentFragment(true));
+};
+NodeWrapper.createElement = function(tagName) {
+  return NodeWrapper.wrap(document.createElementNS(svgns, tagName));
+};
+NodeWrapper.createTextNode = (isIE ? function(text) {
+  // On Internet Explorer, DOM text nodes created through
+  // document.createTextNode with the second argument given as 'true':
+  //
+  // document.createTextNode('some text', true)
+  //
+  // will have a .style property on them as an artifact of how we support
+  // various things internally. Changing this will have no affect.
+  // Technically DOM text nodes should not have a .style property.
+  return NodeWrapper.wrap(document.createTextNode(text, true));
+} : function(text) {
+  return NodeWrapper.wrap(document.createTextNode(text));
 });
 
 // NodeWrapper 'instance' methods.
-mixin(NodeWrapper.prototype, {
-  g: function(attributes) {
-    return this.appendNewChildElement('g', attributes);
-  },
-  path: function(commands, attributes) {
-    return this.appendNewChildElement(
-      'path',
-      mixin({
-        d: this.formatPath(commands),
-      }, attributes)
-    );
-  },
-  rect: function(x, y, width, height, attributes) {
-    return this.appendNewChildElement(
-      'rect',
-      mixin({
-        x: this.formatDistance(x),
-        y: this.formatDistance(y),
-        width: this.formatDistance(width),
-        height: this.formatDistance(height)
-      }, attributes)
-    );
-  },
-  circle: function(cx, cy, r, attributes) {
-    return this.appendNewChildElement(
-      'circle',
-      mixin({
-        cx: this.formatDistance(cx),
-        cy: this.formatDistance(cy),
-        r: this.formatDistance(r)
-      }, attributes)
-    );
-  },
-  ellipse: function(cx, cy, rx, ry, attributes) {
-    return this.appendNewChildElement(
-      'ellipse',
-      mixin({
-        cx: this.formatDistance(cx),
-        cy: this.formatDistance(cy),
-        rx: this.formatDistance(rx),
-        ry: this.formatDistance(ry)
-      }, attributes)
-    );
-  },
-  line: function(x1, y1, x2, y2, attributes) {
-    return this.appendNewChildElement(
-      'line',
-      mixin({
-        x1: this.formatDistance(x1),
-        y1: this.formatDistance(y1),
-        x2: this.formatDistance(x2),
-        y2: this.formatDistance(y2)
-      }, attributes)
-    );
-  },
-  polyline: function(points, attributes) {
-    return this.appendNewChildElement(
-      'polyline',
-      mixin({
-        points: this.formatPoints(points)
-      }, attributes)
-    );
-  },
-  polygon: function(points, attributes) {
-    return this.appendNewChildElement(
-      'polygon',
-      mixin({
-        points: this.formatPoints(points)
-      }, attributes)
-    );
-  },
+var proto = NodeWrapper.prototype;
 
-  plainText: function(x, y, characters, attributes, options) {
-    config = mixin({}, this.plainText.defaults, options);
-    var textElem = this.appendNewChildElement(
-      'text',
-      mixin({
-        x: this.formatDistance(x),
-        y: this.formatDistance(y)
-      }, attributes)
-    );
-    var lines = characters.split('\n'),
-        lineCount = lines.length,
-        startIndex = 0,
-        tspans = [],
-        maxWidth = 0;
-    for (var i = 0; i < lineCount; ++i) {
-      var line = lines[i];
-      var attr = i == 0 ? undefined :
-        {dx: 0, dy: this.plainText_lineHeight};
-      var tspan = textElem.appendNewChildElement('tspan', attr);
-      tspan.appendChild(NodeWrapper.createTextNode(line));
-      tspans.push(tspan);
-      tspan.width = textElem.getSubStringLength(startIndex, line.length);
-      maxWidth = Math.max(maxWidth, tspan.width);
-      startIndex += line.length;
-    }
+proto.g = function(attributes) {
+  return this.appendNewChildElement('g', attributes);
+};
 
-    // Align lines
-    var textAlign = config.textAlign;
-    var t = textAlign === 'left' ? 0 : textAlign === 'center' ? 0.5 : 1.0;
-    var prevWidth;
-    for (i = 0; i < lineCount; ++i) {
-      var tspan = tspans[i];
-      var dx = i == 0 ? (maxWidth - tspan.width) * t :
-        prevWidth * (t - 1) - tspan.width * t;
-      if (dx === 0)
-        tspan.removeAttribute('dx');
-      else
-        tspan.setAttribute('dx', dx);
-      if (isWebKit)
-        textElem.appendChild(tspan);
-      prevWidth = tspan.width;
-    }
-    return textElem;
-  },
-  plainText_lineHeight: '1.2em',
-  plainText_textAlign: 'left',
+proto.path = function(commands, attributes) {
+  return this.appendNewChildElement(
+    'path',
+    mixin({
+      d: this.formatPath(commands),
+    }, attributes)
+  );
+};
 
-  appendNewChildElement: function(tagName, attributes) {
-    var child = NodeWrapper.createElement(tagName).setAttributes(attributes);
-    this.appendChild(child);
-    return child;
-  },
+proto.rect = function(x, y, width, height, attributes) {
+  return this.appendNewChildElement(
+    'rect',
+    mixin({
+      x: this.formatDistance(x),
+      y: this.formatDistance(y),
+      width: this.formatDistance(width),
+      height: this.formatDistance(height)
+    }, attributes)
+  );
+};
 
-  appendChild: function(child) {
-    this.node.appendChild(child.node);
-    child._parent = this;
-    return this;
-  },
+proto.circle = function(cx, cy, r, attributes) {
+  return this.appendNewChildElement(
+    'circle',
+    mixin({
+      cx: this.formatDistance(cx),
+      cy: this.formatDistance(cy),
+      r: this.formatDistance(r)
+    }, attributes)
+  );
+};
 
-  getParent: function() {
-    if (this._parent)
-      return this._parent;
-    if (!this.node)
-      return null;
-    var parentNode = this.node.parentNode;
-    if (!parentNode || parentNode.namespaceURI != svgns)
-      return null;
-    return NodeWrapper.wrap(parentNode);
-  },
+proto.ellipse = function(cx, cy, rx, ry, attributes) {
+  return this.appendNewChildElement(
+    'ellipse',
+    mixin({
+      cx: this.formatDistance(cx),
+      cy: this.formatDistance(cy),
+      rx: this.formatDistance(rx),
+      ry: this.formatDistance(ry)
+    }, attributes)
+  );
+};
 
-  setAttributes: function(attributes) {
-    for (var name in attributes)
-      this.setAttribute(name, attributes[name]);
-    return this;
-  },
+proto.line = function(x1, y1, x2, y2, attributes) {
+  return this.appendNewChildElement(
+    'line',
+    mixin({
+      x1: this.formatDistance(x1),
+      y1: this.formatDistance(y1),
+      x2: this.formatDistance(x2),
+      y2: this.formatDistance(y2)
+    }, attributes)
+  );
+};
 
-  setAttribute: function(name, value) {
-    if (name.indexOf(':') != -1) {
-      var parts = name.split(':');
-      this.node.setAttributeNS(namespaces[parts[0]], parts[1], value);
-    }
+proto.polyline = function(points, attributes) {
+  return this.appendNewChildElement(
+    'polyline',
+    mixin({
+      points: this.formatPoints(points)
+    }, attributes)
+  );
+};
+
+proto.polygon = function(points, attributes) {
+  return this.appendNewChildElement(
+    'polygon',
+    mixin({
+      points: this.formatPoints(points)
+    }, attributes)
+  );
+};
+
+
+proto.plainText = function(x, y, characters, attributes, options) {
+  options = mixin({}, this.plainText.optionDefaults, options);
+  var textElem = this.appendNewChildElement(
+    'text',
+    mixin({
+      x: this.formatDistance(x),
+      y: this.formatDistance(y)
+    }, attributes)
+  );
+
+  var lines = characters.split('\n'),
+      lineCount = lines.length,
+      lineHeight = options.lineHeight,
+      startIndex = 0,
+      tspans = [],
+      maxWidth = 0;
+  for (var i = 0; i < lineCount; ++i) {
+    var line = lines[i];
+    var attr = i == 0 ? undefined : {dx: 0, dy: lineHeight};
+    var tspan = textElem.appendNewChildElement('tspan', attr);
+    tspan.appendChild(NodeWrapper.createTextNode(line));
+    tspans.push(tspan);
+    tspan.width = textElem.getSubStringLength(startIndex, line.length);
+    maxWidth = Math.max(maxWidth, tspan.width);
+    startIndex += line.length;
+  }
+
+  // Align lines
+  var textAlign = options.textAlign;
+  var t = textAlign === 'left' ? 0 : textAlign === 'center' ? 0.5 : 1.0;
+  var prevWidth;
+  for (i = 0; i < lineCount; ++i) {
+    var tspan = tspans[i];
+    var dx = i == 0 ? (maxWidth - tspan.width) * t :
+      prevWidth * (t - 1) - tspan.width * t;
+    if (dx === 0)
+      tspan.removeAttribute('dx');
     else
-      this.node.setAttribute(name, value);
-    return this;
-  },
+      tspan.setAttribute('dx', dx);
+    if (isWebKit)
+      textElem.appendChild(tspan);
+    prevWidth = tspan.width;
+  }
+  return textElem;
+};
+proto.plainText.optionDefaults = {
+  lineHeight: '1.2em',
+  textAlign: 'left'
+};
 
-  getAttributes: function(names) {
-    var ret = {};
-    for (var i = 0, n = names.length; i < n; i++)
-      ret[name] = this.getAttribute(name);
-    return ret;
-  },
+proto.appendNewChildElement = function(tagName, attributes) {
+  var child = NodeWrapper.createElement(tagName).setAttributes(attributes);
+  this.appendChild(child);
+  return child;
+};
 
-  getAttribute: function(name) {
-    var value;
-    if (name.indexOf(':') != -1) {
-      var parts = name.split(':');
-      value = this.node.getAttributeNS(argumentspaces[parts[0]], parts[1]);
-    }
-    else
-      value = this.node.getAttribute(name);
+proto.appendChild = function(child) {
+  this.node.appendChild(child.node);
+  child._parent = this;
+  return this;
+};
 
-    if (this.getAttribute_lookParentPredicate(name, value)) {
-      var parent = this.getParent();
-      if (parent)
-        return parent.getAttribute(name);
-    }
-    return value;
-  },
-  getAttribute_lookParentPredicate: function(name, value) {
-    return value === null || value === '' || value === 'inherit';
-  },
+proto.getParent = function() {
+  if (this._parent)
+    return this._parent;
+  if (!this.node)
+    return null;
+  var parentNode = this.node.parentNode;
+  if (!parentNode || parentNode.namespaceURI != svgns)
+    return null;
+  return NodeWrapper.wrap(parentNode);
+};
 
-  removeAttribute: function(name) {
-    var value;
-    if (name.indexOf(':') != -1) {
-      var parts = name.split(':');
-      this.node.removeAttributeNS(argumentspaces[parts[0]], parts[1]);
-    }
-    else
-      this.node.removeAttribute(name);
-    return this;
-  },
+proto.setAttributes = function(attributes) {
+  for (var name in attributes)
+    this.setAttribute(name, attributes[name]);
+  return this;
+};
 
-  formatPath: function(commands) {
-    var s = [];
-    for (var i = 0, n = commands.length; i < n; i++) {
-      var command = commands[i],
-          cmdChar = command[0],
-          params = command.slice(1),
-          paramCount = params.length;
-      s.push(cmdChar);
-      switch (cmdChar.toUpperCase()) {
-      case 'M':
-      case 'L':
-      case 'T':
-        if (paramCount == 0 || paramCount % 2) {
-          throw new Error(
-            'Parameter count must be 2 * n (n >= 1) for path command "'.concat(
-              cmdChar, '" but was ', paramCount
-            )
-          );
-        }
-        s.push(this.formatPoints(params));
-        break;
-      case 'S':
-      case 'Q':
-        if (paramCount == 0 || paramCount % 4) {
-          throw new Error(
-            'Parameter count must be 4 * n (n >= 1) for path command "'.concat(
-              cmdChar, '" but was ', paramCount
-            )
-          );
-        }
-        s.push(this.formatPoints(params));
-        break;
-      case 'C':
-        if (paramCount == 0 || paramCount % 6) {
-          throw new Error(
-            'Parameter count must be 6 * n (n >= 1) for path command "'.concat(
-              cmdChar, '" but was ', paramCount
-            )
-          );
-        }
-        s.push(this.formatPoints(params));
-        break;
-      case 'H':
-      case 'V':
-        if (paramCount == 0) {
-          throw new Error(
-            'Parameter count must be n (n >= 1) for path command "'.concat(
-              cmdChar, '" but was ', paramCount
-            )
-          );
-        }
-        var s2 = [];
-        for (var j = 0; j < paramCount; ++j)
-          s2.push(this.formatDistance(params[j]));
-        s.push(s2.join(' '));
-        break;
-      case 'Z':
-        if (paramCount != 0) {
-          throw new Error(
-            'Parameter count must be 0 for path command "'.concat(
-              cmdChar, '" but was ', paramCount
-            )
-          );
-        }
-        break;
-      case 'A':
-        if (paramCount == 0 || paramCount % 8) {
-          throw new Error(
-            'Parameter count must be 8 * n (n >= 1) for path command "'.concat(
-              cmdChar, '" but was ', paramCount
-            )
-          );
-        }
-        var s2 = [];
-        for (var j = 0; j < paramCount; j += 8) {
-          s.push(this.formatPoint(params[j], params[j + 1]));
-          s.push(this.formatAngle(params[j + 2]));
-          s.push(this.bool2flag(command[j + 3]));
-          s.push(this.bool2flag(command[j + 4]));
-          s.push(this.bool2flag(command[j + 5]));
-          s.push(this.formatPoint(params[j + 6], params[j + 7]));
-        }
-        s.push(s2.join(' '));
-        break;
-      default:
-        throw new Error('Unsupported path command. command=' + cmdChar);
+proto.setAttribute = function(name, value) {
+  if (name.indexOf(':') != -1) {
+    var parts = name.split(':');
+    this.node.setAttributeNS(namespaces[parts[0]], parts[1], value);
+  }
+  else
+    this.node.setAttribute(name, value);
+  return this;
+};
+
+proto.getAttributes = function(names) {
+  var ret = {};
+  for (var i = 0, n = names.length; i < n; i++)
+    ret[name] = this.getAttribute(name);
+  return ret;
+};
+
+proto.getAttribute = function(name) {
+  var value;
+  if (name.indexOf(':') != -1) {
+    var parts = name.split(':');
+    value = this.node.getAttributeNS(argumentspaces[parts[0]], parts[1]);
+  }
+  else
+    value = this.node.getAttribute(name);
+
+  if (this.getAttribute.lookParentPredicate(name, value)) {
+    var parent = this.getParent();
+    if (parent)
+      return parent.getAttribute(name);
+  }
+  return value;
+};
+proto.getAttribute.lookParentPredicate = function(name, value) {
+  return value === null || value === '' || value === 'inherit';
+};
+
+proto.removeAttribute = function(name) {
+  var value;
+  if (name.indexOf(':') != -1) {
+    var parts = name.split(':');
+    this.node.removeAttributeNS(argumentspaces[parts[0]], parts[1]);
+  }
+  else
+    this.node.removeAttribute(name);
+  return this;
+};
+
+proto.formatPath = function(commands) {
+  var s = [];
+  for (var i = 0, n = commands.length; i < n; i++) {
+    var command = commands[i],
+        cmdChar = command[0],
+        params = command.slice(1),
+        paramCount = params.length;
+    s.push(cmdChar);
+    switch (cmdChar.toUpperCase()) {
+    case 'M':
+    case 'L':
+    case 'T':
+      if (paramCount == 0 || paramCount % 2) {
+        throw new Error(
+          'Parameter count must be 2 * n (n >= 1) for path command "'.concat(
+            cmdChar, '" but was ', paramCount
+          )
+        );
       }
+      s.push(this.formatPoints(params));
+      break;
+    case 'S':
+    case 'Q':
+      if (paramCount == 0 || paramCount % 4) {
+        throw new Error(
+          'Parameter count must be 4 * n (n >= 1) for path command "'.concat(
+            cmdChar, '" but was ', paramCount
+          )
+        );
+      }
+      s.push(this.formatPoints(params));
+      break;
+    case 'C':
+      if (paramCount == 0 || paramCount % 6) {
+        throw new Error(
+          'Parameter count must be 6 * n (n >= 1) for path command "'.concat(
+            cmdChar, '" but was ', paramCount
+          )
+        );
+      }
+      s.push(this.formatPoints(params));
+      break;
+    case 'H':
+    case 'V':
+      if (paramCount == 0) {
+        throw new Error(
+          'Parameter count must be n (n >= 1) for path command "'.concat(
+            cmdChar, '" but was ', paramCount
+          )
+        );
+      }
+      var s2 = [];
+      for (var j = 0; j < paramCount; ++j)
+        s2.push(this.formatDistance(params[j]));
+      s.push(s2.join(' '));
+      break;
+    case 'Z':
+      if (paramCount != 0) {
+        throw new Error(
+          'Parameter count must be 0 for path command "'.concat(
+            cmdChar, '" but was ', paramCount
+          )
+        );
+      }
+      break;
+    case 'A':
+      if (paramCount == 0 || paramCount % 8) {
+        throw new Error(
+          'Parameter count must be 8 * n (n >= 1) for path command "'.concat(
+            cmdChar, '" but was ', paramCount
+          )
+        );
+      }
+      var s2 = [];
+      for (var j = 0; j < paramCount; j += 8) {
+        s.push(this.formatPoint(params[j], params[j + 1]));
+        s.push(this.formatAngle(params[j + 2]));
+        s.push(this.bool2flag(command[j + 3]));
+        s.push(this.bool2flag(command[j + 4]));
+        s.push(this.bool2flag(command[j + 5]));
+        s.push(this.formatPoint(params[j + 6], params[j + 7]));
+      }
+      s.push(s2.join(' '));
+      break;
+    default:
+      throw new Error('Unsupported path command. command=' + cmdChar);
     }
-    return s.join(' ');
-  },
-
-  /**
-   * @param points flat array [x1, y1, x2, y2, ...]
-   */
-  formatPoints: function(points) {
-    var terms = [];
-    for (var i = 0, n = points.length; i < n; i += 2)
-      terms.push(this.formatPoint(points[i], points[i + 1]));
-    return terms.join(' ');
-  },
-
-  formatPoint: function(x, y) {
-    return this.formatDistance(x) + ',' + this.formatDistance(y);
-  },
-
-  formatDistance: function(value) {
-    return isNaN(value) ?
-        value : formatNumber(value, this.formatDistance_fractionDigitCount);
-  },
-  formatDistance_fractionDigitCount: 2,
-
-  formatAngle: function(value) {
-    return isNaN(value) ?
-        value : formatNumber(value, this.formatAngle_fractionDigitCount);
-  },
-  formatAngle_fractionDigitCount: 2,
-
-  bool2flag: function(value) {
-    return value ? 1 : 0;
-  },
-
-  rotateThenTranslateTransform: function(cx, cy, angle) {
-    var t = [];
-    t.push(['translate', this.formatDistance(cx), this.formatDistance(cy)]);
-    if (angle)
-      t.push(['rotate', this.formatAngle(angle)]);
-    return this.formatTransform(t);
-  },
-
-  formatTransform: function(transforms) {
-    var s = [];
-    for (var i = 0, n = transforms.length; i < n; i++) {
-      var transform = transforms[i];
-      s.push(transform[0].concat('(', transform.slice(1), ')'));
-    }
-    return s.join(' ');
-  },
-
-  getSubStringLength: (isWebKit ? function(startIndex, charCount) {
-    return this.getTextBBox(startIndex, charCount).width;
-  } : function(startIndex, charCount) {
-    return this.node.getSubStringLength(startIndex, charCount);
-  }),
-
-  getTextBBox: function(startIndex, charCount) {
-    var node = this.node,
-        i = startIndex || 0,
-        n = node.getNumberOfChars(),
-        endIndex = charCount === undefined ? n : i + charCount,
-        unionRect = geom.unionRect,
-        rect = node.getExtentOfChar(i);
-    for (++i; i < endIndex; ++i)
-      rect = unionRect(node.getExtentOfChar(i), rect);
-    return rect;
   }
+  return s.join(' ');
+};
+
+/**
+ * @param points flat array [x1, y1, x2, y2, ...]
+ */
+proto.formatPoints = function(points) {
+  var terms = [];
+  for (var i = 0, n = points.length; i < n; i += 2)
+    terms.push(this.formatPoint(points[i], points[i + 1]));
+  return terms.join(' ');
+};
+
+proto.formatPoint = function(x, y) {
+  return this.formatDistance(x) + ',' + this.formatDistance(y);
+};
+
+proto.formatDistance = function(value) {
+  return isNaN(value) ?
+      value : formatNumber(value, this.formatDistance.fractionDigitCount);
+};
+proto.formatDistance.fractionDigitCount = 2;
+
+proto.formatAngle = function(value) {
+  return isNaN(value) ?
+      value : formatNumber(value, this.formatAngle.fractionDigitCount);
+};
+proto.formatAngle.fractionDigitCount = 2;
+
+proto.bool2flag = function(value) {
+  return value ? 1 : 0;
+};
+
+proto.rotateThenTranslateTransform = function(cx, cy, angle) {
+  var t = [];
+  t.push(['translate', this.formatDistance(cx), this.formatDistance(cy)]);
+  if (angle)
+    t.push(['rotate', this.formatAngle(angle)]);
+  return this.formatTransform(t);
+};
+
+proto.formatTransform = function(transforms) {
+  var s = [];
+  for (var i = 0, n = transforms.length; i < n; i++) {
+    var transform = transforms[i];
+    s.push(transform[0].concat('(', transform.slice(1), ')'));
+  }
+  return s.join(' ');
+};
+
+proto.getSubStringLength = (isWebKit ? function(startIndex, charCount) {
+  return this.getTextBBox(startIndex, charCount).width;
+} : function(startIndex, charCount) {
+  return this.node.getSubStringLength(startIndex, charCount);
 });
 
-mixin(NodeWrapper.prototype.plainText, {
-  defaults: {
-    textAlign: 'left'
-  }
-});
+proto.getTextBBox = function(startIndex, charCount) {
+  var node = this.node,
+      i = startIndex || 0,
+      n = node.getNumberOfChars(),
+      endIndex = charCount === undefined ? n : i + charCount,
+      unionRect = geom.unionRect,
+      rect = node.getExtentOfChar(i);
+  for (++i; i < endIndex; ++i)
+    rect = unionRect(node.getExtentOfChar(i), rect);
+  return rect;
+};
 
 // geom module functions.
 var geom = (function() {
