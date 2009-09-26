@@ -33,7 +33,9 @@ var svgns = 'http://www.w3.org/2000/svg',
       xlink: xlinkns
     },
     userAgent = navigator.userAgent.toLowerCase(),
-    isIE = userAgent.indexOf('msie') != -1 && userAgent.indexOf('opera') == -1,
+    isWebKit = userAgent.indexOf('webkit') != -1,
+    isOpera = userAgent.indexOf('opera') != -1,
+    isIE = userAgent.indexOf('msie') != -1 && !isOpera,
     _toString = Object.prototype.toString;
 
 function mixin(dest /* , sources */) {
@@ -201,7 +203,8 @@ mixin(NodeWrapper.prototype, {
     );
   },
 
-  plainText: function(x, y, characters, attributes) {
+  plainText: function(x, y, characters, attributes, options) {
+    config = mixin({}, this.plainText.defaults, options);
     var textElem = this.appendNewChildElement(
       'text',
       mixin({
@@ -210,20 +213,42 @@ mixin(NodeWrapper.prototype, {
       }, attributes)
     );
     var lines = characters.split('\n'),
+        lineCount = lines.length,
         startIndex = 0,
-        lineWidth;
-    for (var i = 0, n = lines.length; i < n; ++i) {
+        tspans = [],
+        maxWidth = 0;
+    for (var i = 0; i < lineCount; ++i) {
       var line = lines[i];
-      var tspanAttr = i == 0 ? undefined :
-        {dx: -lineWidth, dy: this.plainText_lineHeight};
-      textElem.appendNewChildElement('tspan', tspanAttr).
-          appendChild(NodeWrapper.createTextNode(line));
-      lineWidth = textElem.node.getSubStringLength(startIndex, line.length);
+      var attr = i == 0 ? undefined :
+        {dx: 0, dy: this.plainText_lineHeight};
+      var tspan = textElem.appendNewChildElement('tspan', attr);
+      tspan.appendChild(NodeWrapper.createTextNode(line));
+      tspans.push(tspan);
+      tspan.width = textElem.getSubStringLength(startIndex, line.length);
+      maxWidth = Math.max(maxWidth, tspan.width);
       startIndex += line.length;
+    }
+
+    // Align lines
+    var textAlign = config.textAlign;
+    var t = textAlign === 'left' ? 0 : textAlign === 'center' ? 0.5 : 1.0;
+    var prevWidth;
+    for (i = 0; i < lineCount; ++i) {
+      var tspan = tspans[i];
+      var dx = i == 0 ? (maxWidth - tspan.width) * t :
+        prevWidth * (t - 1) - tspan.width * t;
+      if (dx === 0)
+        tspan.removeAttribute('dx');
+      else
+        tspan.setAttribute('dx', dx);
+      if (isWebKit)
+        textElem.appendChild(tspan);
+      prevWidth = tspan.width;
     }
     return textElem;
   },
   plainText_lineHeight: '1.2em',
+  plainText_textAlign: 'left',
 
   appendNewChildElement: function(tagName, attributes) {
     var child = NodeWrapper.createElement(tagName).setAttributes(attributes);
@@ -237,42 +262,69 @@ mixin(NodeWrapper.prototype, {
     return this;
   },
 
-  parent: function() {
+  getParent: function() {
     if (this._parent)
       return this._parent;
     if (!this.node)
       return null;
     var parentNode = this.node.parentNode;
-    if (!parentNode)
+    if (!parentNode || parentNode.namespaceURI != svgns)
       return null;
     return NodeWrapper.wrap(parentNode);
   },
 
   setAttributes: function(attributes) {
-    var node = this.node;
-    for (var k in attributes) {
-      if (k.indexOf(':') != -1) {
-        var parts = k.split(':');
-        node.setAttributeNS(namespaces[parts[0]], parts[1], attributes[k]);
-      }
-      else
-        node.setAttribute(k, attributes[k]);
-    }
+    for (var name in attributes)
+      this.setAttribute(name, attributes[name]);
     return this;
   },
 
-  getAttributes: function(/* names */) {
-    var ret = {};
-    for (var i = 0, len = arguments.length; i < len; i++) {
-      var name = arguments[i];
-      if (name.indexOf(':') != -1) {
-        var parts = name.split(':');
-        ret[name] = node.getAttributeNS(argumentspaces[parts[0]], parts[1]);
-      }
-      else
-        ret[name] = node.getAttribute(name);
+  setAttribute: function(name, value) {
+    if (name.indexOf(':') != -1) {
+      var parts = name.split(':');
+      this.node.setAttributeNS(namespaces[parts[0]], parts[1], value);
     }
+    else
+      this.node.setAttribute(name, value);
+    return this;
+  },
+
+  getAttributes: function(names) {
+    var ret = {};
+    for (var i = 0, n = names.length; i < n; i++)
+      ret[name] = this.getAttribute(name);
     return ret;
+  },
+
+  getAttribute: function(name) {
+    var value;
+    if (name.indexOf(':') != -1) {
+      var parts = name.split(':');
+      value = this.node.getAttributeNS(argumentspaces[parts[0]], parts[1]);
+    }
+    else
+      value = this.node.getAttribute(name);
+
+    if (this.getAttribute_lookParentPredicate(name, value)) {
+      var parent = this.getParent();
+      if (parent)
+        return parent.getAttribute(name);
+    }
+    return value;
+  },
+  getAttribute_lookParentPredicate: function(name, value) {
+    return value === null || value === '' || value === 'inherit';
+  },
+
+  removeAttribute: function(name) {
+    var value;
+    if (name.indexOf(':') != -1) {
+      var parts = name.split(':');
+      this.node.removeAttributeNS(argumentspaces[parts[0]], parts[1]);
+    }
+    else
+      this.node.removeAttribute(name);
+    return this;
   },
 
   formatPath: function(commands) {
@@ -413,6 +465,12 @@ mixin(NodeWrapper.prototype, {
     return s.join(' ');
   },
 
+  getSubStringLength: (isWebKit ? function(startIndex, charCount) {
+    return this.getTextBBox(startIndex, charCount).width;
+  } : function(startIndex, charCount) {
+    return this.node.getSubStringLength(startIndex, charCount);
+  }),
+
   getTextBBox: function(startIndex, charCount) {
     var node = this.node,
         i = startIndex || 0,
@@ -423,6 +481,12 @@ mixin(NodeWrapper.prototype, {
     for (++i; i < endIndex; ++i)
       rect = unionRect(node.getExtentOfChar(i), rect);
     return rect;
+  }
+});
+
+mixin(NodeWrapper.prototype.plainText, {
+  defaults: {
+    textAlign: 'left'
   }
 });
 
