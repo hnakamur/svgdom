@@ -84,17 +84,6 @@ function slice(source, startIndex, endIndex) {
   return ary;
 }
 
-function formatNumber(value, fractionalDigitCount) {
-  var s = value.toFixed(fractionalDigitCount),
-      dotPos = s.indexOf('.');
-  if (dotPos == -1)
-    return s;
-  var i = s.length - 1;
-  while (i >= dotPos && '0.'.indexOf(s.charAt(i)) != -1)
-    --i;
-  return s.substr(0, i + 1);
-}
-
 // SVG DOM Node wrapper
 function NodeWrapper(node) {
   this.node = node;
@@ -290,6 +279,8 @@ proto.setAttributes = function(attributes) {
 };
 
 proto.setAttribute = function(name, value) {
+  if (value === undefined)
+    return this.removeAttribute(name);
   if (name.indexOf(':') != -1) {
     var parts = name.split(':');
     this.node.setAttributeNS(namespaces[parts[0]], parts[1], value);
@@ -444,15 +435,26 @@ proto.formatPoint = function(x, y) {
 
 proto.formatDistance = function(value) {
   return isNaN(value) ?
-      value : formatNumber(value, this.formatDistance.fractionDigitCount);
+      value : this.formatNumber(value, this.formatDistance.fractionDigitCount);
 };
-proto.formatDistance.fractionDigitCount = 2;
+proto.formatDistance.fractionDigitCount = 1;
 
 proto.formatAngle = function(value) {
   return isNaN(value) ?
-      value : formatNumber(value, this.formatAngle.fractionDigitCount);
+      value : this.formatNumber(value, this.formatAngle.fractionDigitCount);
 };
-proto.formatAngle.fractionDigitCount = 2;
+proto.formatAngle.fractionDigitCount = 1;
+
+proto.formatNumber = function(value, fractionalDigitCount) {
+  var s = value.toFixed(fractionalDigitCount),
+      dotPos = s.indexOf('.');
+  if (dotPos == -1)
+    return s;
+  var i = s.length - 1;
+  while (i >= dotPos && '0.'.indexOf(s.charAt(i)) != -1)
+    --i;
+  return s.substr(0, i + 1);
+};
 
 proto.bool2flag = function(value) {
   return value ? 1 : 0;
@@ -684,7 +686,6 @@ return {
   reject: reject,
   isArray: isArray,
   slice: slice,
-  formatNumber: formatNumber,
   geom: geom
 };
 

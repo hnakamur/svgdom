@@ -1,5 +1,21 @@
-svgdom - A SVG DOM manipulator for a minimalist.
+svgdom - A SVG DOM manipulator which is easy to use for common tasks.
 It is aimed at using with svgweb (http://svgweb.googlecode.com/).
+
+Goals:
+- Make it easy to use for common cases.
+  - Let it hard but doable for other cases.
+
+- Produce compact svg dom xml.
+  - Avoid redundant elements and attributes.
+  - Prefer shorter attribute values.
+    - But avoid too short unreadable values.
+
+API naming policy:
+- Short names for convenient methods.
+- Long names for primitive operations.
+  - Reserve short names for the future when you add more convenient methods.
+- Evolutionary API growth.
+  - Do not add convenient methods until you find actual use cases.
 
 The MIT License
 

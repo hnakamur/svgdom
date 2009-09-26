@@ -14,18 +14,9 @@ window.onload = function() {
       ['l', 40, 0],
       ['C', 130, 120, 180, 100, 250, 20]
     ],
-    {
-      stroke: 'blue',
-      arrows: {start: {stroke: 'red'}, end: {}}
-    }
+    {stroke: 'blue'},
+    {arrows: {start: {fill: 'red'}, end: {}} }
   );
-
-  s.rect({x: 120, y: 40, width: 80, height: 18, fill: 'none', stroke: '#000'});
-  s.multilineText(120, 40, "foo\nbar\nand baz", {
-    'text-anchor': 'end',
-  });
-
-  s.multilineText(50, 15, "single line");
 }
 </script>
 </head>
