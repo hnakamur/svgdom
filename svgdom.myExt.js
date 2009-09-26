@@ -1,12 +1,12 @@
-svgdom.mixin(svgdom.NodeWrapper.prototype, (function() {
+svgdom.mixin(svgdom.ElementWrapper.prototype, (function() {
   var mixin = svgdom.mixin,
       geom = svgdom.geom,
       rad2deg = geom.rad2deg,
       deg2rad = geom.deg2rad;
 
   function curve(pathCommands, attributes, options) {
-    attributes = mixin({}, curve.attributeDefaults, attributes);
-    options = mixin({}, curve.optionDefaults, options);
+    attributes = mixin({}, curve.defaultAttributes, attributes);
+    options = mixin({}, curve.defaultOptions, options);
     var arrowsOptions = options.arrows;
         arrowAtStart = arrowsOptions && arrowsOptions.start,
         arrowAtEnd = arrowsOptions && arrowsOptions.end,
@@ -125,16 +125,16 @@ svgdom.mixin(svgdom.NodeWrapper.prototype, (function() {
     }
     return pts;
   };
-  curve.attributeDefaults = {
+  curve.defaultAttributes = {
     'class': 'curve',
     stroke: '#000',
     fill: 'none'
   };
-  curve.optionDefaults = {
+  curve.defaultOptions = {
   };
 
   function arrow(x, y, angle, attributes, options) {
-    options = mixin({}, arrow.optionDefaults, options);
+    options = mixin({}, arrow.defaultOptions, options);
     var w = options.arrowLength;
     var h = w * Math.tan(deg2rad(options.arrowAngle / 2));
     return this.path(
@@ -145,17 +145,17 @@ svgdom.mixin(svgdom.NodeWrapper.prototype, (function() {
       ],
       mixin(
         {transform: this.rotateThenTranslateTransform(x, y, angle)},
-        arrow.attributeDefaults,
+        arrow.defaultAttributes,
         attributes
       )
     );
   }
-  arrow.attributeDefaults = {
+  arrow.defaultAttributes = {
     'class': 'arrow',
     stroke: 'none',
     fill: '#000'
   };
-  arrow.optionDefaults = {
+  arrow.defaultOptions = {
     arrowAngle: 45,
     arrowLength: 10
   };

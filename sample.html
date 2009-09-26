@@ -1,34 +1,32 @@
 <html>
 <head>
-<title>svgdom - A SVG DOM manipulator for a minimalist.</title>
+<title>svgdom - A SVG DOM manipulator which is easy to use for common tasks.</title>
 <script src="../svgweb/src/svg.js" data-path="../svgweb/src/"></script>
 <script src="svgdom.js"></script>
 <script>
 window.onload = function() {
-
   // manipulate an existing element.
-  svgdom.NodeWrapper.byId('myText').setAttributes({fill: 'green'});
+  svgdom.ElementWrapper.byId('myText').setAttributes({fill: 'green'});
 
   // build up a element tree.
-  var s = svgdom.NodeWrapper.byId('mySVG');
+  var s = svgdom.ElementWrapper.byId('mySVG');
 //  s.setAttribute('text-anchor', 'end');
-  s.circle(50, 80, 10);
-  s.rect(100, 240, 100, 50, {fill: 'none', stroke: '#00f'});
-  s.plainText(100, 240, 'A dynamically\ncreated\ntext text\ntext text text text text and text', undefined, {textAlign: 'right'});
-//  s.plainText(100, 240, 'A dynamically\ncreated\ntext text\ntext text text', {'text-anchor': 'end'});
-//  s.plainText(40, 240, 'A dynamically\ncreated\ntext'/*, {'text-anchor': 'end'}*/);
+  s.circle(50, 80, 10, {stroke: 'none', fill: '#000'});
+  s.rect(100, 240, 100, 50);
+  s.plainText(100, 240,
+    'A dynamically\ncreated\ntext text\ntext text text text text and text'
+  );
+//  s.plainText(100, 240, 'A dynamically\ncreated\ntext text\ntext text text text text and text', undefined, {textAlign: 'right'});
   s.path([
       ['M', 100, 200],
       ['C', 200, 100, 300, 0, 400, 100],
       ['C', 500, 200, 600, 300, 700, 200],
       ['C', 800, 100, 900, 100, 900, 100]
   ], {
-    id: 'path1',
-    fill: 'none',
-    stroke: '#000'
+    id: 'path1'
   });
-//  s.text().textPath({'xlink:href': '#path1'}).
-//      textNode('This is a textpath. As of today, it seems textpath is not supported in svgweb.');
+
+  svgdom.ElementWrapper.unwrapAll();
 }
 </script>
 </head>
