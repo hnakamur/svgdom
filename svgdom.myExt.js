@@ -155,8 +155,30 @@ svgdom.mixin(svgdom.NodeWrapper.prototype, (function() {
     arrowLength: 10
   };
 
+  function multilineText(x, y, text, options) {
+    var lines = text.split('\n');
+    var textElem = this.text(mixin({x: x, y: y}, options));
+    var spans = [];
+    var box;
+    var startIndex = 0;
+    for (var i = 0, n = lines.length; i < n; ++i) {
+      var line = lines[i];
+      var span;
+      if (i == 0)
+        span = textElem.tspan();
+      else
+        span = textElem.tspan({dx: -box.width, dy: box.height});
+      span.textNode(line);
+      box = textElem.getTextBBox(startIndex, line.length);
+      spans.push(span);
+      startIndex += line.length;
+    }
+    return textElem;
+  }
+
   return {
     curve: curve,
-    arrow: arrow
+    arrow: arrow,
+    multilineText: multilineText
   };
 })());

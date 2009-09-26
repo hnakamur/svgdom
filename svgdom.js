@@ -33,7 +33,8 @@ var svgns = 'http://www.w3.org/2000/svg',
       xlink: xlinkns
     },
     userAgent = navigator.userAgent.toLowerCase(),
-    isIE = userAgent.indexOf('msie') != -1 && userAgent.indexOf('opera') == -1;
+    isIE = userAgent.indexOf('msie') != -1 && userAgent.indexOf('opera') == -1,
+    _toString = Object.prototype.toString;
 
 function mixin(dest /* , sources */) {
   for (var i = 1, n = arguments.length; i < n; ++i) {
@@ -44,150 +45,75 @@ function mixin(dest /* , sources */) {
   return dest;
 }
 
-function curry(fn) {
-  var _this = this, args = toRealArray(arguments, 1);
-  return function() {
-    return fn.apply(_this, args.concat(toRealArray(arguments)));
+function reject(obj, callbackOrKeys) {
+  var ret = mixin({}, obj);
+  if (isArray(callbackOrKeys)) {
+    for (var i = 0, n = callbackOrKeys.length; i < n; ++i)
+      delete ret[callbackOrKeys[i]];
   }
-}
-
-function filterOut(obj /* , excludes */) {
-  var ret = {},
-      excludes = toRealArray(arguments, 1);
-      excludeMap = toMap(excludes, excludes);
-  for (var k in obj) {
-    if (!(k in excludeMap))
-      ret[k] = obj[k];
+  else {
+    for (var k in ret) {
+      if (callbackOrKeys(k, ret[k]))
+        delete ret[k];
+    }
   }
   return ret;
 }
 
-function toMap(keys, values) {
-  var ret = {};
-  for (var i = 0, n = keys.length; i < n; ++i)
-    ret[keys[i]] = values[i];
-  return ret;
+function isArray(object) {
+  return _toString.call(object) == '[object Array]';
 }
 
-function camelize(name, firstCapital) {
-  var chars = [],
-      upperNext = firstCapital;
-  for (var i = 0, len = name.length; i < len; i++) {
-    var c = name.charAt(i);
-    if (upperNext) {
-      c = c.toUpperCase();
-      upperNext = false;
-    }
-    else if (c === '-') {
-      upperNext = true;
-      continue;
-    }
-    chars.push(c);
-  }
-  return chars.join('');
-}
+function slice(source, startIndex, endIndex) {
+  var ary = [],
+      len = source.length;
+  if (startIndex === undefined)
+    startIndex = 0;
+  else if (startIndex < 0)
+    startIndex += len;
 
-function hyphenize(name) {
-  var chars = [];
-  for (var i = 0, len = name.length; i < len; i++) {
-    var c = name.charAt(i);
-    if (c === c.toUpperCase()) {
-      chars.push('-');
-      chars.push(c.toLowerCase());
-    }
-    else
-      chars.push(c);
-  }
-  return chars.join('');
-}
+  if (endIndex === undefined)
+    endIndex = len;
+  else if (endIndex < 0)
+    endIndex += len;
 
-function toRealArray(pseudoArray, fromIndex) {
-  var ary = [];
-  for (var i = fromIndex || 0, n = pseudoArray.length; i < n; ++i)
-    ary.push(pseudoArray[i]);
+  for (var i = startIndex; i < endIndex; ++i)
+    ary.push(source[i]);
   return ary;
 }
 
-function isArray(ary) {
-  return Object.prototype.toString.call(ary) == '[object Array]';
+function formatNumber(value, fractionalDigitCount) {
+  var s = value.toFixed(fractionalDigitCount),
+      dotPos = s.indexOf('.');
+  if (dotPos == -1)
+    return s;
+  var i = s.length - 1;
+  while (i >= dotPos && '0.'.indexOf(s.charAt(i)) != -1)
+    --i;
+  return s.substr(0, i + 1);
 }
 
 // SVG DOM Node wrapper
 function NodeWrapper(node) {
   this.node = node;
 }
-
-function create(node) { return new NodeWrapper(node); }
-
-function byId(id) {
-  var elem = document.getElementById(id);
-  return elem && create(elem);
-}
-
 mixin(NodeWrapper, {
-  create: create,
-  byId: byId
-});
-
-// NodeWrapper 'instance' methods.
-mixin(NodeWrapper.prototype, {
-  fragment: function() {
+  wrap: function(node) { return new NodeWrapper(node); },
+  byId: function(id) {
+    var elem = document.getElementById(id);
+    return elem && NodeWrapper.wrap(elem);
+  },
+  createDocumentFragment: function() {
     // To create a DocumentFragment for use with SVG, you should call
     // document.createDocumentFragment(true). Note the extra true parameter --
     // this is required by SVG Web to help us know that this DocumentFragment
     // will be used with SVG, possibly going into our fake Flash backend.
-    return create(document.createDocumentFragment(true));
+    return NodeWrapper.wrap(document.createDocumentFragment(true));
   },
-
-  element: function(type, attr) {
-    var child = create(document.createElementNS(svgns, type)).setAttr(attr);
-    this.append(child);
-    return child;
+  createElement: function(tagName) {
+    return NodeWrapper.wrap(document.createElementNS(svgns, tagName));
   },
-  svg: function(attr) { return this.element('svg', attr); },
-  g: function(attr) { return this.element('g', attr); },
-  defs: function(attr) { return this.element('defs', attr); },
-  desc: function(attr) { return this.element('desc', attr); },
-  title: function(attr) { return this.element('title', attr); },
-  metadata: function(attr) { return this.element('metadata', attr); },
-  symbol: function(attr) { return this.element('symbol', attr); },
-  use: function(attr) { return this.element('use', attr); },
-  'switch': function(attr) { return this.element('switch', attr); },
-  image: function(attr) { return this.element('image', attr); },
-  style: function(attr) { return this.element('style', attr); },
-  path: function(attr) { return this.element('path', attr); },
-  rect: function(attr) { return this.element('rect', attr); },
-  circle: function(attr) { return this.element('circle', attr); },
-  ellipse: function(attr) { return this.element('ellipse', attr); },
-  line: function(attr) { return this.element('line', attr); },
-  polyline: function(attr) { return this.element('polyline', attr); },
-  polygon: function(attr) { return this.element('polygon', attr); },
-  text: function(attr) { return this.element('text', attr); },
-  tspan: function(attr) { return this.element('tspan', attr); },
-  tref: function(attr) { return this.element('tref', attr); },
-  textPath: function(attr) { return this.element('textPath', attr); },
-  marker: function(attr) { return this.element('marker', attr); },
-  colorProfile: function(attr) { return this.element('color-profile', attr); },
-  clipPath: function(attr) { return this.element('clipPath', attr); },
-  filter: function(attr) { return this.element('filter', attr); },
-  cursor: function(attr) { return this.element('cursor', attr); },
-  a: function(attr) { return this.element('a', attr); },
-  view: function(attr) { return this.element('view', attr); },
-  script: function(attr) { return this.element('script', attr); },
-  animate: function(attr) { return this.element('animate', attr); },
-  set: function(attr) { return this.element('set', attr); },
-  animateMotion: function(attr) { return this.element('animateMotion', attr); },
-  animateColor: function(attr) { return this.element('animateColor', attr); },
-  animateTransform: function(attr) { return this.element('animateTransform', attr); },
-  font: function(attr) { return this.element('font', attr); },
-  glyph: function(attr) { return this.element('glyph', attr); },
-  missingGlyph: function(attr) { return this.element('missing-glyph', attr); },
-  hkern: function(attr) { return this.element('hkern', attr); },
-  vkern: function(attr) { return this.element('vkern', attr); },
-  fontFace: function(attr) { return this.element('font-face', attr); },
-  metadata: function(attr) { return this.element('metadata', attr); },
-
-  textNode: (isIE ? function textNodeIE(text) {
+  createTextNode: (isIE ? function(text) {
     // On Internet Explorer, DOM text nodes created through
     // document.createTextNode with the second argument given as 'true':
     //
@@ -196,109 +122,286 @@ mixin(NodeWrapper.prototype, {
     // will have a .style property on them as an artifact of how we support
     // various things internally. Changing this will have no affect.
     // Technically DOM text nodes should not have a .style property.
-    var child = create(document.createTextNode(text, true));
-    this.append(child);
-    return child;
-  } : function textNode(text) {
-    var child = create(document.createTextNode(text));
-    this.append(child);
-    return child;
+    return NodeWrapper.wrap(document.createTextNode(text, true));
+  } : function(text) {
+    return NodeWrapper.wrap(document.createTextNode(text));
   }),
+});
 
-  coordSeparator: ',',
+// NodeWrapper 'instance' methods.
+mixin(NodeWrapper.prototype, {
+  g: function(attributes) {
+    return this.appendNewChildElement('g', attributes);
+  },
+  path: function(commands, attributes) {
+    return this.appendNewChildElement(
+      'path',
+      mixin({
+        d: this.formatPath(commands),
+      }, attributes)
+    );
+  },
+  rect: function(x, y, width, height, attributes) {
+    return this.appendNewChildElement(
+      'rect',
+      mixin({
+        x: this.formatDistance(x),
+        y: this.formatDistance(y),
+        width: this.formatDistance(width),
+        height: this.formatDistance(height)
+      }, attributes)
+    );
+  },
+  circle: function(cx, cy, r, attributes) {
+    return this.appendNewChildElement(
+      'circle',
+      mixin({
+        cx: this.formatDistance(cx),
+        cy: this.formatDistance(cy),
+        r: this.formatDistance(r)
+      }, attributes)
+    );
+  },
+  ellipse: function(cx, cy, rx, ry, attributes) {
+    return this.appendNewChildElement(
+      'ellipse',
+      mixin({
+        cx: this.formatDistance(cx),
+        cy: this.formatDistance(cy),
+        rx: this.formatDistance(rx),
+        ry: this.formatDistance(ry)
+      }, attributes)
+    );
+  },
+  line: function(x1, y1, x2, y2, attributes) {
+    return this.appendNewChildElement(
+      'line',
+      mixin({
+        x1: this.formatDistance(x1),
+        y1: this.formatDistance(y1),
+        x2: this.formatDistance(x2),
+        y2: this.formatDistance(y2)
+      }, attributes)
+    );
+  },
+  polyline: function(points, attributes) {
+    return this.appendNewChildElement(
+      'polyline',
+      mixin({
+        points: this.formatPoints(points)
+      }, attributes)
+    );
+  },
+  polygon: function(points, attributes) {
+    return this.appendNewChildElement(
+      'polygon',
+      mixin({
+        points: this.formatPoints(points)
+      }, attributes)
+    );
+  },
+
+  plainText: function(x, y, characters, attributes) {
+    var textElem = this.appendNewChildElement(
+      'text',
+      mixin({
+        x: this.formatDistance(x),
+        y: this.formatDistance(y)
+      }, attributes)
+    );
+    var lines = characters.split('\n'),
+        startIndex = 0,
+        lineWidth;
+    for (var i = 0, n = lines.length; i < n; ++i) {
+      var line = lines[i];
+      var tspanAttr = i == 0 ? undefined :
+        {dx: -lineWidth, dy: this.plainText_lineHeight};
+      textElem.appendNewChildElement('tspan', tspanAttr).
+          appendChild(NodeWrapper.createTextNode(line));
+      lineWidth = textElem.node.getSubStringLength(startIndex, line.length);
+      startIndex += line.length;
+    }
+    return textElem;
+  },
+  plainText_lineHeight: '1.2em',
+
+  appendNewChildElement: function(tagName, attributes) {
+    var child = NodeWrapper.createElement(tagName).setAttributes(attributes);
+    this.appendChild(child);
+    return child;
+  },
+
+  appendChild: function(child) {
+    this.node.appendChild(child.node);
+    child._parent = this;
+    return this;
+  },
+
+  parent: function() {
+    if (this._parent)
+      return this._parent;
+    if (!this.node)
+      return null;
+    var parentNode = this.node.parentNode;
+    if (!parentNode)
+      return null;
+    return NodeWrapper.wrap(parentNode);
+  },
+
+  setAttributes: function(attributes) {
+    var node = this.node;
+    for (var k in attributes) {
+      if (k.indexOf(':') != -1) {
+        var parts = k.split(':');
+        node.setAttributeNS(namespaces[parts[0]], parts[1], attributes[k]);
+      }
+      else
+        node.setAttribute(k, attributes[k]);
+    }
+    return this;
+  },
+
+  getAttributes: function(/* names */) {
+    var ret = {};
+    for (var i = 0, len = arguments.length; i < len; i++) {
+      var name = arguments[i];
+      if (name.indexOf(':') != -1) {
+        var parts = name.split(':');
+        ret[name] = node.getAttributeNS(argumentspaces[parts[0]], parts[1]);
+      }
+      else
+        ret[name] = node.getAttribute(name);
+    }
+    return ret;
+  },
 
   formatPath: function(commands) {
     var s = [];
     for (var i = 0, n = commands.length; i < n; i++) {
       var command = commands[i],
           cmdChar = command[0],
-          m = command.length,
-          j = 1,
-          paramCount = m - j;
+          params = command.slice(1),
+          paramCount = params.length;
       s.push(cmdChar);
       switch (cmdChar.toUpperCase()) {
       case 'M':
       case 'L':
       case 'T':
-        if (paramCount == 0 || paramCount % 2)
-          throw new Error('Parameter count should be 2 * n (n >= 1) for command '.concat(cmdChar, ' but was ', paramCount));
-        while (j < m) {
-          if (j > 1) s.push(' ');
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(this.coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
+        if (paramCount == 0 || paramCount % 2) {
+          throw new Error(
+            'Parameter count must be 2 * n (n >= 1) for path command "'.concat(
+              cmdChar, '" but was ', paramCount
+            )
+          );
         }
+        s.push(this.formatPoints(params));
         break;
       case 'S':
       case 'Q':
-        if (paramCount == 0 || paramCount % 4)
-          throw new Error('Parameter count should be 4 * n (n >= 1) for command '.concat(cmdChar, ' but was ', paramCount));
-        while (j < m) {
-          if (j > 1) s.push(' ');
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(this.coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(' ');
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(this.coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
+        if (paramCount == 0 || paramCount % 4) {
+          throw new Error(
+            'Parameter count must be 4 * n (n >= 1) for path command "'.concat(
+              cmdChar, '" but was ', paramCount
+            )
+          );
         }
+        s.push(this.formatPoints(params));
         break;
       case 'C':
-        if (paramCount == 0 || paramCount % 6)
-          throw new Error('Parameter count should be 6 * n (n >= 1) for command '.concat(cmdChar, ' but was ', paramCount));
-        while (j < m) {
-          if (j > 1) s.push(' ');
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(this.coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(' ');
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(this.coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(' ');
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(this.coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
+        if (paramCount == 0 || paramCount % 6) {
+          throw new Error(
+            'Parameter count must be 6 * n (n >= 1) for path command "'.concat(
+              cmdChar, '" but was ', paramCount
+            )
+          );
         }
+        s.push(this.formatPoints(params));
         break;
       case 'H':
       case 'V':
-        if (paramCount == 0)
-          throw new Error('Parameter needed 0 for command '.concat(cmdChar));
-        while (j < m) {
-          if (j > 1) s.push(' ');
-          s.push(this.toFixedCoord(command[j++]));
+        if (paramCount == 0) {
+          throw new Error(
+            'Parameter count must be n (n >= 1) for path command "'.concat(
+              cmdChar, '" but was ', paramCount
+            )
+          );
         }
+        var s2 = [];
+        for (var j = 0; j < paramCount; ++j)
+          s2.push(this.formatDistance(params[j]));
+        s.push(s2.join(' '));
         break;
       case 'Z':
-        if (paramCount != 0)
-          throw new Error('Parameter count should be 0 for command '.concat(
-              cmdChar, ' but was ', paramCount));
+        if (paramCount != 0) {
+          throw new Error(
+            'Parameter count must be 0 for path command "'.concat(
+              cmdChar, '" but was ', paramCount
+            )
+          );
+        }
         break;
       case 'A':
-        while (j < m) {
-          if (j > 1) s.push(' ');
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(this.coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(' ');
-          s.push(this.toFixedAngle(command[j++]));
-          s.push(' ');
-          s.push(this.bool2flag(command[j++]));
-          s.push(' ');
-          s.push(this.bool2flag(command[j++]));
-          s.push(' ');
-          s.push(this.toFixedCoord(command[j++]));
-          s.push(this.coordSeparator);
-          s.push(this.toFixedCoord(command[j++]));
+        if (paramCount == 0 || paramCount % 8) {
+          throw new Error(
+            'Parameter count must be 8 * n (n >= 1) for path command "'.concat(
+              cmdChar, '" but was ', paramCount
+            )
+          );
         }
+        var s2 = [];
+        for (var j = 0; j < paramCount; j += 8) {
+          s.push(this.formatPoint(params[j], params[j + 1]));
+          s.push(this.formatAngle(params[j + 2]));
+          s.push(this.bool2flag(command[j + 3]));
+          s.push(this.bool2flag(command[j + 4]));
+          s.push(this.bool2flag(command[j + 5]));
+          s.push(this.formatPoint(params[j + 6], params[j + 7]));
+        }
+        s.push(s2.join(' '));
         break;
       default:
         throw new Error('Unsupported path command. command=' + cmdChar);
       }
     }
-    return s.join('');
+    return s.join(' ');
+  },
+
+  /**
+   * @param points flat array [x1, y1, x2, y2, ...]
+   */
+  formatPoints: function(points) {
+    var terms = [];
+    for (var i = 0, n = points.length; i < n; i += 2)
+      terms.push(this.formatPoint(points[i], points[i + 1]));
+    return terms.join(' ');
+  },
+
+  formatPoint: function(x, y) {
+    return this.formatDistance(x) + ',' + this.formatDistance(y);
+  },
+
+  formatDistance: function(value) {
+    return isNaN(value) ?
+        value : formatNumber(value, this.formatDistance_fractionDigitCount);
+  },
+  formatDistance_fractionDigitCount: 2,
+
+  formatAngle: function(value) {
+    return isNaN(value) ?
+        value : formatNumber(value, this.formatAngle_fractionDigitCount);
+  },
+  formatAngle_fractionDigitCount: 2,
+
+  bool2flag: function(value) {
+    return value ? 1 : 0;
+  },
+
+  rotateThenTranslateTransform: function(cx, cy, angle) {
+    var t = [];
+    t.push(['translate', this.formatDistance(cx), this.formatDistance(cy)]);
+    if (angle)
+      t.push(['rotate', this.formatAngle(angle)]);
+    return this.formatTransform(t);
   },
 
   formatTransform: function(transforms) {
@@ -310,97 +413,15 @@ mixin(NodeWrapper.prototype, {
     return s.join(' ');
   },
 
-  rotateThenTranslateTransform: function(cx, cy, angle) {
-    var t = [];
-    t.push(['translate', this.toFixedCoord(cx), this.toFixedCoord(cy)]);
-    if (angle)
-      t.push(['rotate', this.toFixedAngle(angle)]);
-    return this.formatTransform(t);
-  },
-
-  toFixed: function(value, floatDigits) {
-    var s = value.toFixed(floatDigits),
-        dotPos = s.indexOf('.');
-    if (dotPos == -1) return s;
-    for (var i = s.length - 1; i >= dotPos; i--) {
-      var c = s.charAt(i);
-      if (c != '0' && c != '.') break;
-    }
-    return s.substr(0, i + 1);
-  },
-
-  coordFloatDigits: 2,
-
-  toFixedCoord: function(value) {
-    return isNaN(value) ? value : this.toFixed(value, this.coordFloatDigits);
-  },
-
-  angleFloatDigits: 2,
-
-  toFixedAngle: function(value) {
-    return isNaN(value) ? value : this.toFixed(value, this.angleFloatDigits);
-  },
-
-  bool2flag: function(value) {
-    return value ? 1 : 0;
-  },
-
-  append: function() {
-    var node = this.node;
-    for (var i = 0, len = arguments.length; i < len; i++) {
-      var child = arguments[i];
-      node.appendChild(child.node);
-      child._parent = this;
-    }
-    return this;
-  },
-
-  parent: function() {
-    if (this._parent !== undefined) return this._parent;
-    if (!this.node) return null;
-    var parentNode = this.node.parentNode;
-    if (!parentNode) return null;
-    return create(parentNode);
-  },
-
-  setAttr: function(attributes) {
-    var node = this.node;
-    for (var k in attributes) {
-      if (k.indexOf(':') != -1) {
-        var parts = k.split(':');
-        node.setAttributeNS(namespaces[parts[0]], parts[1], attributes[k]);
-      }
-      else {
-        node.setAttribute(k, attributes[k]);
-      }
-    }
-    return this;
-  },
-  attr: function(/* names */) {
-    var ret = {};
-    for (var i = 0, len = arguments.length; i < len; i++) {
-      var name = arguments[i];
-      if (name.indexOf(':') != -1) {
-        var parts = name.split(':');
-        ret[name] = node.getAttributeNS(argumentspaces[parts[0]], parts[1]);
-      }
-      else {
-        ret[name] = node.getAttribute(name);
-      }
-    }
-    return ret;
-  },
-  getTextBBox: function() {
+  getTextBBox: function(startIndex, charCount) {
     var node = this.node,
+        i = startIndex || 0,
         n = node.getNumberOfChars(),
+        endIndex = charCount === undefined ? n : i + charCount,
         unionRect = geom.unionRect,
-        rect;
-    for (var i = 0; i < n; i++) {
-      if (i == 0)
-        rect = node.getExtentOfChar(i)
-      else
-        rect = unionRect(node.getExtentOfChar(i), rect);
-    }
+        rect = node.getExtentOfChar(i);
+    for (++i; i < endIndex; ++i)
+      rect = unionRect(node.getExtentOfChar(i), rect);
     return rect;
   }
 });
@@ -593,13 +614,10 @@ var geom = (function() {
 return {
   NodeWrapper: NodeWrapper,
   mixin: mixin,
+  reject: reject,
   isArray: isArray,
-  filterOut: filterOut,
-  toRealArray: toRealArray,
-  toMap: toMap,
-  curry: curry,
-  camelize: camelize,
-  hyphenize: hyphenize,
+  slice: slice,
+  formatNumber: formatNumber,
   geom: geom
 };
 
