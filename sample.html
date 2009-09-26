@@ -17,14 +17,15 @@ window.onload = function() {
     'A dynamically\ncreated\ntext text\ntext text text text text and text'
   );
 //  s.plainText(100, 240, 'A dynamically\ncreated\ntext text\ntext text text text text and text', undefined, {textAlign: 'right'});
-  s.path([
+  s.path(
+    [
       ['M', 100, 200],
       ['C', 200, 100, 300, 0, 400, 100],
       ['C', 500, 200, 600, 300, 700, 200],
       ['C', 800, 100, 900, 100, 900, 100]
-  ], {
-    id: 'path1'
-  });
+    ],
+    { id: 'path1' }
+  );
 
   svgdom.ElementWrapper.unwrapAll();
 }

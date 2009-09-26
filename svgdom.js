@@ -514,21 +514,21 @@ function ElementWrapper(element) {
         }
         break;
       case 'A':
-        if (paramCount == 0 || paramCount % 8) {
+        if (paramCount == 0 || paramCount % 7) {
           throw new Error(
-            'Parameter count must be 8 * n (n >= 1) for path command "'.concat(
+            'Parameter count must be 7 * n (n >= 1) for path command "'.concat(
               cmdChar, '" but was ', paramCount
             )
           );
         }
         var s2 = [];
-        for (var j = 0; j < paramCount; j += 8) {
-          s.push(this.formatPoint(params[j], params[j + 1]));
+        for (var j = 0; j < paramCount; j += 7) {
+          s.push(this.formatDistance(params[j]));
+          s.push(this.formatDistance(params[j + 1]));
           s.push(this.formatAngle(params[j + 2]));
-          s.push(this.bool2flag(command[j + 3]));
-          s.push(this.bool2flag(command[j + 4]));
-          s.push(this.bool2flag(command[j + 5]));
-          s.push(this.formatPoint(params[j + 6], params[j + 7]));
+          s.push(this.bool2flag(params[j + 3]));
+          s.push(this.bool2flag(params[j + 4]));
+          s.push(this.formatPoint(params[j + 5], params[j + 6]));
         }
         s.push(s2.join(' '));
         break;
