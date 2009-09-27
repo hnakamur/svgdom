@@ -763,7 +763,21 @@ function ElementWrapper(element) {
     return this.element.getTransformToElement(element.element);
   };
 
-  proto.alignElements = function(targets, tx, ty) {
+  proto.alignElements = function(targets, hAlign, vAlign) {
+    var tx;
+    switch (hAlign) {
+    case 'left': tx = 0; break;
+    case 'center': tx = 0.5; break;
+    case 'right': tx = 1; break;
+    }
+
+    var ty;
+    switch (vAlign) {
+    case 'top': ty = 0; break;
+    case 'middle': ty = 0.5; break;
+    case 'bottom': ty = 1; break;
+    }
+
     var baseBox = this.getBBox();
     var basePoint = this.createPoint(
       baseBox.x + baseBox.width * (tx || 0),
