@@ -86,6 +86,10 @@ function slice(source, startIndex, endIndex) {
   return ary;
 }
 
+function ensureArray(object) {
+  return isArray(object) ? object : [object];
+}
+
 // SVG Element wrapper
 function ElementWrapper(element) {
   this.element = element;
@@ -424,6 +428,15 @@ function ElementWrapper(element) {
     return this;
   };
 
+  proto.increaseLengthAttribute = function(name, diffValue) {
+    if (!diffValue)
+      return this;
+    var oldStrVal = this.getAttribute(name);
+    var oldVal = oldStrVal ? parseFloat(oldStrVal) : 0;
+    var newVal = oldVal + diffValue;
+    return this.setAttribute(name, this.formatLength(newVal));
+  };
+
   proto.getAttributes = function(names) {
     var ret = {};
     for (var i = 0, n = names.length; i < n; i++)
@@ -608,7 +621,7 @@ function ElementWrapper(element) {
       return s.join(' ');
     }
     else
-      return this.formatTransform(transforms);
+      return this.formatOneTransform(transforms);
   };
   proto.formatTransform.isIdentityTransform = function(transform) {
     var type = transform[0];
@@ -700,13 +713,87 @@ function ElementWrapper(element) {
       break;
     }
     return type + '(' + s.join(',') + ')';
+  };
+
+  proto.createPoint = function(x, y) {
+    var p = this.element.ownerSVGElement.createSVGPoint();
+    p.x = x;
+    p.y = y;
+    return p;
+  };
+
+  proto.getTransformToElement = function(element) {
+    return this.element.getTransformToElement(element.element);
+  };
+
+  proto.alignElements = function(targets, tx, ty) {
+    var baseBox = this.getBBox();
+    var basePoint = this.createPoint(
+      baseBox.x + baseBox.width * (tx || 0),
+      baseBox.y + baseBox.height * (ty || 0)
+    );
+    targets = ensureArray(targets);
+    for (var i = 0, n = targets.length; i < n; ++i) {
+      var target = targets[i];
+      var targetBox = geom.cloneRect(target.getBBox());
+      var transform = this.getTransformToElement(target);
+      var basePoint2 = basePoint.matrixTransform(transform);
+
+      var params = {};
+      if (tx !== undefined)
+        params.x = basePoint2.x - targetBox.width * tx;
+      if (ty !== undefined)
+        params.y = basePoint2.y - targetBox.height * ty;
+      target.moveElement(params);
+    }
+  };
+
+  proto.moveElement = function(params) {
+    var box = this.getBBox(),
+        dx = 0,
+        dy = 0;
+
+    if (params.x)
+      dx = params.x - box.x;
+    else if (params.dx)
+      dx = params.dx;
+
+    if (params.y)
+      dy = params.y - box.y;
+    else if (params.dy)
+      dy = params.dy;
+
+    if (dx === 0 && dy === 0)
+      return;
+
+    switch (this.element.localName) {
+    case 'rect':
+    case 'text':
+      this.increaseLengthAttribute('x', dx);
+      this.increaseLengthAttribute('y', dy);
+      break;
+    case 'circle':
+    case 'ellipse':
+      this.increaseLengthAttribute('cx', dx);
+      this.increaseLengthAttribute('cy', dy);
+      break;
+    case 'line':
+      this.increaseLengthAttribute('x1', dx);
+      this.increaseLengthAttribute('y1', dy);
+      this.increaseLengthAttribute('x2', dx);
+      this.increaseLengthAttribute('y2', dy);
+      break;
+    default:
+      var transform = this.formatOneTransform(['translate', dx, dy]) + ' ' +
+          this.getAttribute('transform');
+      this.setAttribute('transform', transform);
+      break;
+    }
   }
 
-  proto.getSubStringLength = (isWebKit ? function(startIndex, charCount) {
-    return this.getTextBBox(startIndex, charCount).width;
-  } : function(startIndex, charCount) {
-    return this.element.getSubStringLength(startIndex, charCount);
-  });
+  proto.getBBox = function() {
+    return this.element.getBBox();
+  };
 
   proto.getTextBBox = function(startIndex, charCount) {
     var element = this.element,
@@ -719,6 +806,12 @@ function ElementWrapper(element) {
       rect = unionRect(element.getExtentOfChar(i), rect);
     return rect;
   };
+
+  proto.getSubStringLength = (isWebKit ? function(startIndex, charCount) {
+    return this.getTextBBox(startIndex, charCount).width;
+  } : function(startIndex, charCount) {
+    return this.element.getSubStringLength(startIndex, charCount);
+  });
 
 })();
 
@@ -913,6 +1006,7 @@ return {
   reject: reject,
   isArray: isArray,
   slice: slice,
+  ensureArray: ensureArray,
   geom: geom
 };
 
