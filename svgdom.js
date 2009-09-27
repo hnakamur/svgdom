@@ -403,30 +403,30 @@ function ElementWrapper(element) {
     return wrap(parentNode);
   };
 
-  proto.firstChild = function() {
+  proto.firstChildElement = function() {
     var elem = this.element.firstChild;
-    while (elem && !(elem instanceof SVGElement))
+    while (elem && !(elem instanceof Element))
       elem = elem.nextSibling;
     return wrap(elem);
   };
 
-  proto.lastChild = function() {
+  proto.lastChildElement = function() {
     var elem = this.element.lastChild;
-    while (elem && !(elem instanceof SVGElement))
+    while (elem && !(elem instanceof Element))
       elem = elem.previousSibling;
     return wrap(elem);
   };
 
-  proto.nextSibling = function() {
+  proto.nextSiblingElement = function() {
     var elem = this.element.nextSibling;
-    while (elem && !(elem instanceof SVGElement))
+    while (elem && !(elem instanceof Element))
       elem = elem.nextSibling;
     return wrap(elem);
   };
 
-  proto.previousSibling = function() {
+  proto.previousSiblingElement = function() {
     var elem = this.element.previousSibling;
-    while (elem && !(elem instanceof SVGElement))
+    while (elem && !(elem instanceof Element))
       elem = elem.previousSibling;
     return wrap(elem);
   };
