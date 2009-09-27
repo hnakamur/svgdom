@@ -54,19 +54,37 @@ function mixin(dest /* , sources */) {
   return dest;
 }
 
-function reject(obj, callbackOrKeys) {
-  var ret = mixin({}, obj);
-  if (isArray(callbackOrKeys)) {
-    for (var i = 0, n = callbackOrKeys.length; i < n; ++i)
-      delete ret[callbackOrKeys[i]];
+function filter(obj, keys) {
+  var ret = {};
+  if (isString(keys))
+    keys = ensureArray(keys);
+  if (isArray(keys)) {
+    for (var i = 0, n = keys.length; i < n; ++i) {
+      var key = keys[i];
+      if (key in obj)
+        ret[key] = obj[key];
+    }
   }
   else {
-    for (var k in ret) {
-      if (callbackOrKeys(k, ret[k]))
-        delete ret[k];
+    for (var key in obj) {
+      if (key in keys)
+        ret[key] = obj[key];
     }
   }
   return ret;
+}
+
+function toMap(keys, values) {
+  if (values === undefined)
+    values = keys;
+  var ret = {};
+  for (var i = 0, n = keys.length; i < n; ++i)
+    ret[keys[i]] = values[i];
+  return ret;
+}
+
+function isString(object) {
+  return _toString.call(object) == '[object String]';
 }
 
 function isArray(object) {
@@ -101,7 +119,21 @@ function ElementWrapper(element) {
 }
 (function() {
   var wrappers = {},
-      uid = 0;
+      uid = 0,
+      supportedAttributeNames = toMap([
+        'class', 'cx', 'cy',
+        'd', 'dx', 'dy',
+        'fill',
+        'height',
+        'id',
+        'points',
+        'r', 'rx', 'ry',
+        'stroke', 'svgdom:uid',
+        'transform',
+        'width',
+        'x', 'x1', 'x2',
+        'y', 'y1', 'y2'
+      ]);
 
   function byId(id) {
     var elem = document.getElementById(id);
@@ -188,6 +220,7 @@ function ElementWrapper(element) {
   }
 
   mixin(ElementWrapper, {
+    supportedAttributeNames: supportedAttributeNames,
     byId: byId,
     createDocumentFragment: createDocumentFragment,
     createElement: createElement,
@@ -205,133 +238,101 @@ function ElementWrapper(element) {
     return parseInt(this.getAttribute('svgdom:uid'));
   };
 
-  proto.g = function(attributes, options) {
-    return this.appendNewChildElement('g', attributes, options);
+  proto.g = function(options) {
+    return this.appendNewChildElement('g', options);
   };
 
-  proto.path = function(commands, attributes, options) {
+  proto.path = function(commands, options) {
     return this.appendNewChildElement(
       'path',
-      mixin({
-        d: this.formatPath(commands)
-      }, this.path.defaultAttributes, attributes),
-      options
+      mixin({d: commands}, this.path.defaults, options)
     );
   };
-  proto.path.defaultAttributes = {
+  proto.path.defaults = {
     fill: 'none',
     stroke: '#000'
   }
 
-  proto.rect = function(x, y, width, height, attributes, options) {
+  proto.rect = function(x, y, width, height, options) {
     return this.appendNewChildElement(
       'rect',
-      mixin({
-        x: this.formatLength(x),
-        y: this.formatLength(y),
-        width: this.formatLength(width),
-        height: this.formatLength(height)
-      }, this.rect.defaultAttributes, attributes),
-      options
+      mixin(
+        {x: x, y: y, width: width, height: height},
+        this.rect.defaults,
+        options
+      )
     );
   };
-  proto.rect.defaultAttributes = {
+  proto.rect.defaults = {
     fill: 'none',
     stroke: '#000'
   }
 
-  proto.circle = function(cx, cy, r, attributes, options) {
+  proto.circle = function(cx, cy, r, options) {
     return this.appendNewChildElement(
       'circle',
-      mixin({
-        cx: this.formatLength(cx),
-        cy: this.formatLength(cy),
-        r: this.formatLength(r)
-      }, this.circle.defaultAttributes, attributes),
-      options
+      mixin({cx: cx, cy: cy, r: r}, this.circle.defaults, options)
     );
   };
-  proto.circle.defaultAttributes = {
+  proto.circle.defaults = {
     fill: 'none',
     stroke: '#000'
   }
 
-  proto.ellipse = function(cx, cy, rx, ry, attributes, options) {
+  proto.ellipse = function(cx, cy, rx, ry, options) {
     return this.appendNewChildElement(
       'ellipse',
-      mixin({
-        cx: this.formatLength(cx),
-        cy: this.formatLength(cy),
-        rx: this.formatLength(rx),
-        ry: this.formatLength(ry)
-      }, this.ellipse.defaultAttributes, attributes),
-      options
+      mixin({cx: cx, cy: cy, rx: rx, ry: ry}, this.ellipse.defaults, options)
     );
   };
-  proto.ellipse.defaultAttributes = {
+  proto.ellipse.defaults = {
     fill: 'none',
     stroke: '#000'
   }
 
-  proto.line = function(x1, y1, x2, y2, attributes, options) {
+  proto.line = function(x1, y1, x2, y2, options) {
     return this.appendNewChildElement(
       'line',
-      mixin({
-        x1: this.formatLength(x1),
-        y1: this.formatLength(y1),
-        x2: this.formatLength(x2),
-        y2: this.formatLength(y2)
-      }, this.line.defaultAttributes, attributes),
-      options
+      mixin({x1: x1, y1: y1, x2: x2, y2: y2}, this.line.defaults, options)
     );
   };
-  proto.line.defaultAttributes = {
+  proto.line.defaults = {
     fill: 'none',
     stroke: '#000'
   }
 
-  proto.polyline = function(points, attributes, options) {
+  proto.polyline = function(points, options) {
     return this.appendNewChildElement(
       'polyline',
-      mixin({
-        points: this.formatPoints(points)
-      }, this.polyline.defaultAttributes, attributes),
-      options
+      mixin({points: points}, this.polyline.defaults, options)
     );
   };
-  proto.polyline.defaultAttributes = {
+  proto.polyline.defaults = {
     fill: 'none',
     stroke: '#000'
   }
 
-  proto.polygon = function(points, attributes, options) {
+  proto.polygon = function(points, options) {
     return this.appendNewChildElement(
       'polygon',
-      mixin({
-        points: this.formatPoints(points)
-      }, this.polygon.defaultAttributes, attributes),
-      options
+      mixin({points: points}, this.polygon.defaults, options)
     );
   };
-  proto.polygon.defaultAttributes = {
+  proto.polygon.defaults = {
     fill: 'none',
     stroke: '#000'
   }
 
-  proto.plainText = function(x, y, characters, attributes, options) {
-    options = mixin({}, this.plainText.defaultOptions, options);
+  proto.plainText = function(x, y, characters, options) {
+    var config = mixin({}, this.plainText.defaults, options);
     var textElem = this.appendNewChildElement(
       'text',
-      mixin({
-        x: this.formatLength(x),
-        y: this.formatLength(y)
-      }, attributes),
-      options
+      mixin({x: x, y: y}, config)
     );
 
     var lines = characters.split('\n'),
         lineCount = lines.length,
-        lineHeight = options.lineHeight,
+        lineHeight = config.lineHeight,
         startIndex = 0,
         tspans = [],
         maxWidth = 0;
@@ -347,7 +348,7 @@ function ElementWrapper(element) {
     }
 
     // Align lines
-    var textAlign = options.textAlign;
+    var textAlign = config.textAlign;
     var t = textAlign === 'left' ? 0 : textAlign === 'center' ? 0.5 : 1.0;
     var prevWidth;
     for (i = 0; i < lineCount; ++i) {
@@ -364,17 +365,12 @@ function ElementWrapper(element) {
     }
     return textElem;
   };
-  proto.plainText.defaultOptions = {
+  proto.plainText.defaults = {
     lineHeight: '1.2em',
     textAlign: 'left'
   };
 
-  proto.appendNewChildElement = function(tagName, attributes, options) {
-    if (options && options.transform) {
-      var transform = this.formatTransform(options.transform);
-      if (transform !== '')
-        attributes = mixin({ transform: transform }, attributes);
-    }
+  proto.appendNewChildElement = function(tagName, attributes) {
     var child = wrap(createElement(tagName)).setAttributes(attributes);
     this.appendChild(child);
     return child;
@@ -415,6 +411,7 @@ function ElementWrapper(element) {
   };
 
   proto.setAttributes = function(attributes) {
+    attributes = filter(attributes, supportedAttributeNames);
     for (var name in attributes)
       this.setAttribute(name, attributes[name]);
     return this;
@@ -423,6 +420,7 @@ function ElementWrapper(element) {
   proto.setAttribute = function(name, value) {
     if (value === undefined)
       return this.removeAttribute(name);
+    value = this.formatAttributeValue(name, value);
     if (name.indexOf(':') != -1) {
       var parts = name.split(':');
       this.element.setAttributeNS(namespaces[parts[0]], parts[1], value);
@@ -430,6 +428,38 @@ function ElementWrapper(element) {
     else
       this.element.setAttribute(name, value);
     return this;
+  };
+
+  proto.formatAttributeValue = function(name, value) {
+    if (isString(value))
+      return value;
+
+    switch (name) {
+    case 'cx':
+    case 'cy':
+    case 'dx':
+    case 'dy':
+    case 'height':
+    case 'r':
+    case 'rx':
+    case 'ry':
+    case 'width':
+    case 'x':
+    case 'x1':
+    case 'x2':
+    case 'y':
+    case 'y1':
+    case 'y2':
+      return this.formatLength(value);
+    case 'd':
+      return this.formatPath(value);
+    case 'points':
+      return this.formatPoints(value);
+    case 'transform':
+      return this.formatTransform(value);
+    default:
+      return '' + value;
+    }
   };
 
   proto.increaseLengthAttribute = function(name, diffValue) {
@@ -1017,10 +1047,12 @@ var geom = (function() {
 return {
   ElementWrapper: ElementWrapper,
   mixin: mixin,
-  reject: reject,
+  filter: filter,
+  toMap: toMap,
+  isString: isString,
   isArray: isArray,
-  slice: slice,
   ensureArray: ensureArray,
+  slice: slice,
   geom: geom
 };
 

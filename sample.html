@@ -10,13 +10,12 @@ window.onload = function() {
 
   // build up a element tree.
   var s = svgdom.ElementWrapper.byId('mySVG');
-//  s.setAttribute('text-anchor', 'end');
   s.circle(50, 80, 10, {stroke: 'none', fill: '#000'});
   s.rect(100, 240, 100, 50);
   s.plainText(100, 240,
     'A dynamically\ncreated\ntext text\ntext text text text text and text'
   );
-//  s.plainText(100, 240, 'A dynamically\ncreated\ntext text\ntext text text text text and text', undefined, {textAlign: 'right'});
+//  s.plainText(100, 240, 'A dynamically\ncreated\ntext text\ntext text text text text and text', {textAlign: 'right'});
   s.path(
     [
       ['M', 100, 200],

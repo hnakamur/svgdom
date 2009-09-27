@@ -1,18 +1,18 @@
 svgdom.mixin(svgdom.ElementWrapper.prototype, (function() {
   var mixin = svgdom.mixin,
+      filter = svgdom.filter,
       geom = svgdom.geom,
       rad2deg = geom.rad2deg,
       deg2rad = geom.deg2rad;
 
-  function curve(pathCommands, attributes, options) {
-    attributes = mixin({}, curve.defaultAttributes, attributes);
-    options = mixin({}, curve.defaultOptions, options);
-    var arrowsOptions = options.arrows;
-        arrowAtStart = arrowsOptions && arrowsOptions.start,
-        arrowAtEnd = arrowsOptions && arrowsOptions.end,
+  function curve(pathCommands, options) {
+    var config = mixin({}, curve.defaults, options);
+    var arrowsConfig = config.arrows;
+        arrowAtStart = arrowsConfig && arrowsConfig.start,
+        arrowAtEnd = arrowsConfig && arrowsConfig.end,
         parentElem = arrowAtStart || arrowAtEnd ?
-            this.g({'class': attributes['class']}) : this,
-        path = parentElem.path(pathCommands, attributes);
+            this.g(filter(config, 'class')) : this,
+        path = parentElem.path(pathCommands, config);
 
     if (arrowAtStart || arrowAtEnd) {
       var pts = this.curve.getControlPointsAbs(pathCommands);
@@ -36,6 +36,11 @@ svgdom.mixin(svgdom.ElementWrapper.prototype, (function() {
     else
       return path;
   }
+  curve.defaults = {
+    'class': 'curve',
+    stroke: '#000',
+    fill: 'none'
+  };
   // This is temporary lousy implementation (especially for arc pathSeg)
   // and should be deleted when SVGPathElement.getTotalLength() and
   // SVGPathElement.getPointAtLength() are implemented in svgweb.
@@ -125,35 +130,23 @@ svgdom.mixin(svgdom.ElementWrapper.prototype, (function() {
     }
     return pts;
   };
-  curve.defaultAttributes = {
-    'class': 'curve',
-    stroke: '#000',
-    fill: 'none'
-  };
-  curve.defaultOptions = {
-  };
 
-  function arrow(x, y, angle, attributes, options) {
-    attributes = mixin({}, arrow.defaultAttributes, attributes);
-    options = mixin({}, arrow.defaultOptions, options);
-    var w = options.arrowLength;
-    var h = w * Math.tan(deg2rad(options.arrowAngle / 2));
-    return this.path(
-      [
-        ['M', 0, 0],
-        ['l', -w, h, 0, -h * 2],
-        ['z']
-      ],
-      attributes,
-      {transform: [['translate', x, y], ['rotate', angle]]}
+  function arrow(x, y, angle, options) {
+    var config = mixin({}, arrow.defaults, options);
+    var w = config.arrowLength;
+    var h = w * Math.tan(deg2rad(config.arrowAngle / 2));
+    return this.polygon(
+      [0, 0, -w, h, -w, -h],
+      mixin(
+        {transform: [['translate', x, y], ['rotate', angle]]},
+        filter(config, ['class', 'stroke', 'fill'])
+      )
     );
   }
-  arrow.defaultAttributes = {
+  arrow.defaults = {
     'class': 'arrow',
     stroke: 'none',
-    fill: '#000'
-  };
-  arrow.defaultOptions = {
+    fill: '#000',
     arrowAngle: 45,
     arrowLength: 10
   };
