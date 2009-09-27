@@ -186,7 +186,7 @@ function ElementWrapper(element) {
     getRawNode: getRawNode,
     wrap: wrap,
     unwrap: unwrap,
-    unwrapAll: unwrapAll,
+    unwrapAll: unwrapAll
   });
 
   // ElementWrapper 'instance' methods.
@@ -196,16 +196,17 @@ function ElementWrapper(element) {
     return parseInt(this.getAttribute('svgdom:uid'));
   };
 
-  proto.g = function(attributes) {
-    return this.appendNewChildElement('g', attributes);
+  proto.g = function(attributes, options) {
+    return this.appendNewChildElement('g', attributes, options);
   };
 
-  proto.path = function(commands, attributes) {
+  proto.path = function(commands, attributes, options) {
     return this.appendNewChildElement(
       'path',
       mixin({
-        d: this.formatPath(commands),
-      }, this.path.defaultAttributes, attributes)
+        d: this.formatPath(commands)
+      }, this.path.defaultAttributes, attributes),
+      options
     );
   };
   proto.path.defaultAttributes = {
@@ -213,15 +214,16 @@ function ElementWrapper(element) {
     stroke: '#000'
   }
 
-  proto.rect = function(x, y, width, height, attributes) {
+  proto.rect = function(x, y, width, height, attributes, options) {
     return this.appendNewChildElement(
       'rect',
       mixin({
-        x: this.formatDistance(x),
-        y: this.formatDistance(y),
-        width: this.formatDistance(width),
-        height: this.formatDistance(height)
-      }, this.rect.defaultAttributes, attributes)
+        x: this.formatLength(x),
+        y: this.formatLength(y),
+        width: this.formatLength(width),
+        height: this.formatLength(height)
+      }, this.rect.defaultAttributes, attributes),
+      options
     );
   };
   proto.rect.defaultAttributes = {
@@ -229,14 +231,15 @@ function ElementWrapper(element) {
     stroke: '#000'
   }
 
-  proto.circle = function(cx, cy, r, attributes) {
+  proto.circle = function(cx, cy, r, attributes, options) {
     return this.appendNewChildElement(
       'circle',
       mixin({
-        cx: this.formatDistance(cx),
-        cy: this.formatDistance(cy),
-        r: this.formatDistance(r)
-      }, this.circle.defaultAttributes, attributes)
+        cx: this.formatLength(cx),
+        cy: this.formatLength(cy),
+        r: this.formatLength(r)
+      }, this.circle.defaultAttributes, attributes),
+      options
     );
   };
   proto.circle.defaultAttributes = {
@@ -244,15 +247,16 @@ function ElementWrapper(element) {
     stroke: '#000'
   }
 
-  proto.ellipse = function(cx, cy, rx, ry, attributes) {
+  proto.ellipse = function(cx, cy, rx, ry, attributes, options) {
     return this.appendNewChildElement(
       'ellipse',
       mixin({
-        cx: this.formatDistance(cx),
-        cy: this.formatDistance(cy),
-        rx: this.formatDistance(rx),
-        ry: this.formatDistance(ry)
-      }, this.ellipse.defaultAttributes, attributes)
+        cx: this.formatLength(cx),
+        cy: this.formatLength(cy),
+        rx: this.formatLength(rx),
+        ry: this.formatLength(ry)
+      }, this.ellipse.defaultAttributes, attributes),
+      options
     );
   };
   proto.ellipse.defaultAttributes = {
@@ -260,15 +264,16 @@ function ElementWrapper(element) {
     stroke: '#000'
   }
 
-  proto.line = function(x1, y1, x2, y2, attributes) {
+  proto.line = function(x1, y1, x2, y2, attributes, options) {
     return this.appendNewChildElement(
       'line',
       mixin({
-        x1: this.formatDistance(x1),
-        y1: this.formatDistance(y1),
-        x2: this.formatDistance(x2),
-        y2: this.formatDistance(y2)
-      }, this.line.defaultAttributes, attributes)
+        x1: this.formatLength(x1),
+        y1: this.formatLength(y1),
+        x2: this.formatLength(x2),
+        y2: this.formatLength(y2)
+      }, this.line.defaultAttributes, attributes),
+      options
     );
   };
   proto.line.defaultAttributes = {
@@ -276,12 +281,13 @@ function ElementWrapper(element) {
     stroke: '#000'
   }
 
-  proto.polyline = function(points, attributes) {
+  proto.polyline = function(points, attributes, options) {
     return this.appendNewChildElement(
       'polyline',
       mixin({
         points: this.formatPoints(points)
-      }, this.polyline.defaultAttributes, attributes)
+      }, this.polyline.defaultAttributes, attributes),
+      options
     );
   };
   proto.polyline.defaultAttributes = {
@@ -289,12 +295,13 @@ function ElementWrapper(element) {
     stroke: '#000'
   }
 
-  proto.polygon = function(points, attributes) {
+  proto.polygon = function(points, attributes, options) {
     return this.appendNewChildElement(
       'polygon',
       mixin({
         points: this.formatPoints(points)
-      }, this.polygon.defaultAttributes, attributes)
+      }, this.polygon.defaultAttributes, attributes),
+      options
     );
   };
   proto.polygon.defaultAttributes = {
@@ -307,9 +314,10 @@ function ElementWrapper(element) {
     var textElem = this.appendNewChildElement(
       'text',
       mixin({
-        x: this.formatDistance(x),
-        y: this.formatDistance(y)
-      }, attributes)
+        x: this.formatLength(x),
+        y: this.formatLength(y)
+      }, attributes),
+      options
     );
 
     var lines = characters.split('\n'),
@@ -352,7 +360,13 @@ function ElementWrapper(element) {
     textAlign: 'left'
   };
 
-  proto.appendNewChildElement = function(tagName, attributes) {
+  proto.appendNewChildElement = function(tagName, attributes, options) {
+    if (options && options.transform) {
+      attributes = mixin(
+        { transform: this.formatTransform(options.transform) },
+        attributes
+      );
+    }
     var child = wrap(createElement(tagName)).setAttributes(attributes);
     this.appendChild(child);
     return child;
@@ -501,7 +515,7 @@ function ElementWrapper(element) {
         }
         var s2 = [];
         for (var j = 0; j < paramCount; ++j)
-          s2.push(this.formatDistance(params[j]));
+          s2.push(this.formatLength(params[j]));
         s.push(s2.join(' '));
         break;
       case 'Z':
@@ -523,8 +537,8 @@ function ElementWrapper(element) {
         }
         var s2 = [];
         for (var j = 0; j < paramCount; j += 7) {
-          s.push(this.formatDistance(params[j]));
-          s.push(this.formatDistance(params[j + 1]));
+          s.push(this.formatLength(params[j]));
+          s.push(this.formatLength(params[j + 1]));
           s.push(this.formatAngle(params[j + 2]));
           s.push(this.bool2flag(params[j + 3]));
           s.push(this.bool2flag(params[j + 4]));
@@ -550,14 +564,14 @@ function ElementWrapper(element) {
   };
 
   proto.formatPoint = function(x, y) {
-    return this.formatDistance(x) + ',' + this.formatDistance(y);
+    return this.formatLength(x) + ',' + this.formatLength(y);
   };
 
-  proto.formatDistance = function(value) {
+  proto.formatLength = function(value) {
     return isNaN(value) ? value :
-        this.formatNumber(value, this.formatDistance.fractionDigitCount);
+        this.formatNumber(value, this.formatLength.fractionDigitCount);
   };
-  proto.formatDistance.fractionDigitCount = 1;
+  proto.formatLength.fractionDigitCount = 1;
 
   proto.formatAngle = function(value) {
     return isNaN(value) ? value :
@@ -580,22 +594,113 @@ function ElementWrapper(element) {
     return value ? 1 : 0;
   };
 
-  proto.rotateThenTranslateTransform = function(cx, cy, angle) {
-    var t = [];
-    t.push(['translate', this.formatDistance(cx), this.formatDistance(cy)]);
-    if (angle)
-      t.push(['rotate', this.formatAngle(angle)]);
-    return this.formatTransform(t);
-  };
-
   proto.formatTransform = function(transforms) {
+    if (!(isArray(transforms) && transforms.length > 0))
+      return undefined;
     var s = [];
-    for (var i = 0, n = transforms.length; i < n; i++) {
-      var transform = transforms[i];
-      s.push(transform[0].concat('(', transform.slice(1), ')'));
+    if (isArray(transforms[0])) {
+      for (var i = 0, n = transforms.length; i < n; i++) {
+        var transform = transforms[i];
+        if (this.formatTransform.isIdentityTransform(transform))
+          continue;
+        s.push(this.formatOneTransform(transform));
+      }
+      return s.join(' ');
     }
-    return s.join(' ');
+    else
+      return this.formatTransform(transforms);
   };
+  proto.formatTransform.isIdentityTransform = function(transform) {
+    var type = transform[0];
+    var p = transform.slice(1);
+    switch (type) {
+    case 'matrix':
+      switch (p.length) {
+      case 6:
+        return p[0] === 1 && p[1] === 0 && p[2] === 0 && p[3] === 1 &&
+            p[4] === 0 && p[5] === 0;
+      default:
+        throw new Error(
+            'Invalid transform. Should be matrix(a, b, c, d, e, f)');
+      }
+      break;
+    case 'translate':
+      switch (p.length) {
+      case 1:
+        return p[0] === 0;
+      case 2:
+        return p[0] === 0 && p[1] === 0;
+      default:
+        throw new Error('Invalid transform. Should be translate(tx, [ty])');
+      }
+      break;
+    case 'scale':
+      switch (p.length) {
+      case 1:
+        return p[0] === 1;
+      case 2:
+        return p[0] === 1 && p[1] === 1;
+      default:
+        throw new Error('Invalid transform. Should be scale(sx, [sy])');
+      }
+      break;
+    case 'rotate':
+      switch (p.length) {
+      case 1:
+      case 3:
+        return geom.normalizeDegree(p[0]) === 0;
+      default:
+        throw new Error('Invalid transform. Should be rotate(angle, [cx, cy])');
+      }
+      break;
+    case 'skewX':
+      switch (p.length) {
+      case 1:
+        return geom.normalizeDegree(p[0]) === 0;
+      default:
+        throw new Error('Invalid transform. Should be skewX(angle)');
+      }
+      break;
+    case 'skewY':
+      switch (p.length) {
+      case 1:
+        return geom.normalizeDegree(p[0]) === 0;
+      default:
+        throw new Error('Invalid transform. Should be skewY(angle)');
+      }
+      break;
+    }
+  };
+  proto.formatOneTransform = function(transform) {
+    var type = transform[0];
+    var p = transform.slice(1);
+    var s = [];
+    switch (type) {
+    case 'matrix':
+    case 'translate':
+    case 'scale':
+      for (var i = 0, n = p.length; i < n; ++i)
+        s.push(this.formatLength(p[i]));
+      break;
+    case 'rotate':
+      switch (p.length) {
+      case 1:
+        s.push(this.formatAngle(geom.normalizeDegree(p[0])));
+        break;
+      case 3:
+        s.push(this.formatAngle(geom.normalizeDegree(p[0])));
+        s.push(this.formatLength(p[1]));
+        s.push(this.formatLength(p[2]));
+        break;
+      }
+      break;
+    case 'skewX':
+    case 'skewY':
+      s.push(this.formatAngle(geom.normalizeDegree(p[0])));
+      break;
+    }
+    return type + '(' + s.join(',') + ')';
+  }
 
   proto.getSubStringLength = (isWebKit ? function(startIndex, charCount) {
     return this.getTextBBox(startIndex, charCount).width;
@@ -734,7 +839,7 @@ var geom = (function() {
   }
 
   function normalizeDegree(degree) {
-    return ((angle % 360) + 360) % 360;
+    return ((degree % 360) + 360) % 360;
   }
 
   function deg2rad(degree) {

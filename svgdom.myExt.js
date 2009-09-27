@@ -134,6 +134,7 @@ svgdom.mixin(svgdom.ElementWrapper.prototype, (function() {
   };
 
   function arrow(x, y, angle, attributes, options) {
+    attributes = mixin({}, arrow.defaultAttributes, attributes);
     options = mixin({}, arrow.defaultOptions, options);
     var w = options.arrowLength;
     var h = w * Math.tan(deg2rad(options.arrowAngle / 2));
@@ -143,11 +144,8 @@ svgdom.mixin(svgdom.ElementWrapper.prototype, (function() {
         ['l', -w, h, 0, -h * 2],
         ['z']
       ],
-      mixin(
-        {transform: this.rotateThenTranslateTransform(x, y, angle)},
-        arrow.defaultAttributes,
-        attributes
-      )
+      attributes,
+      {transform: [['translate', x, y], ['rotate', angle]]}
     );
   }
   arrow.defaultAttributes = {
