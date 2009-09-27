@@ -40,6 +40,11 @@ var svgns = 'http://www.w3.org/2000/svg',
     isIE = userAgent.indexOf('msie') != -1 && !isOpera,
     _toString = Object.prototype.toString;
 
+function log(title, object) {
+  console.log(title);
+  console.log(object);
+}
+
 function mixin(dest /* , sources */) {
   for (var i = 1, n = arguments.length; i < n; ++i) {
     var src = arguments[i];
@@ -158,7 +163,7 @@ function ElementWrapper(element) {
 
     var existingUid = getUid(element);
     if (existingUid)
-      return ElementWrappers.wrappers[existingUid];
+      return wrappers[existingUid];
     
     var newUid = setUid(element);
     if (!newUid)
@@ -366,10 +371,9 @@ function ElementWrapper(element) {
 
   proto.appendNewChildElement = function(tagName, attributes, options) {
     if (options && options.transform) {
-      attributes = mixin(
-        { transform: this.formatTransform(options.transform) },
-        attributes
-      );
+      var transform = this.formatTransform(options.transform);
+      if (transform !== '')
+        attributes = mixin({ transform: transform }, attributes);
     }
     var child = wrap(createElement(tagName)).setAttributes(attributes);
     this.appendChild(child);
@@ -620,8 +624,11 @@ function ElementWrapper(element) {
       }
       return s.join(' ');
     }
-    else
+    else {
+      if (this.formatTransform.isIdentityTransform(transforms))
+        return '';
       return this.formatOneTransform(transforms);
+    }
   };
   proto.formatTransform.isIdentityTransform = function(transform) {
     var type = transform[0];
@@ -749,6 +756,9 @@ function ElementWrapper(element) {
   };
 
   proto.moveElement = function(params) {
+    if (arguments.length == 2)
+      params = { x: arguments[0], y: arguments[1] };
+
     var box = this.getBBox(),
         dx = 0,
         dy = 0;
@@ -784,8 +794,12 @@ function ElementWrapper(element) {
       this.increaseLengthAttribute('y2', dy);
       break;
     default:
-      var transform = this.formatOneTransform(['translate', dx, dy]) + ' ' +
-          this.getAttribute('transform');
+      var transform = this.getAttribute('transform');
+      var moveTransform = this.formatOneTransform(['translate', dx, dy]);
+      if (transform)
+        transform = moveTransform + ' ' + transform;
+      else
+        transform = moveTransform;
       this.setAttribute('transform', transform);
       break;
     }
