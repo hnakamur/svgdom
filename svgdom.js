@@ -45,7 +45,7 @@ function log(title, object) {
   console.log(object);
 }
 
-function mixin(dest /* , sources */) {
+function extend(dest /* , sources */) {
   for (var i = 1, n = arguments.length; i < n; ++i) {
     var src = arguments[i];
     for (var k in src)
@@ -219,7 +219,7 @@ function ElementWrapper(element) {
       unwrap(wrapperUid);
   }
 
-  mixin(ElementWrapper, {
+  extend(ElementWrapper, {
     supportedAttributeNames: supportedAttributeNames,
     byId: byId,
     createDocumentFragment: createDocumentFragment,
@@ -245,7 +245,7 @@ function ElementWrapper(element) {
   proto.path = function(commands, options) {
     return this.appendNewChildElement(
       'path',
-      mixin({d: commands}, this.path.defaults, options)
+      extend({d: commands}, this.path.defaults, options)
     );
   };
   proto.path.defaults = {
@@ -256,7 +256,7 @@ function ElementWrapper(element) {
   proto.rect = function(x, y, width, height, options) {
     return this.appendNewChildElement(
       'rect',
-      mixin(
+      extend(
         {x: x, y: y, width: width, height: height},
         this.rect.defaults,
         options
@@ -271,7 +271,7 @@ function ElementWrapper(element) {
   proto.circle = function(cx, cy, r, options) {
     return this.appendNewChildElement(
       'circle',
-      mixin({cx: cx, cy: cy, r: r}, this.circle.defaults, options)
+      extend({cx: cx, cy: cy, r: r}, this.circle.defaults, options)
     );
   };
   proto.circle.defaults = {
@@ -282,7 +282,7 @@ function ElementWrapper(element) {
   proto.ellipse = function(cx, cy, rx, ry, options) {
     return this.appendNewChildElement(
       'ellipse',
-      mixin({cx: cx, cy: cy, rx: rx, ry: ry}, this.ellipse.defaults, options)
+      extend({cx: cx, cy: cy, rx: rx, ry: ry}, this.ellipse.defaults, options)
     );
   };
   proto.ellipse.defaults = {
@@ -293,7 +293,7 @@ function ElementWrapper(element) {
   proto.line = function(x1, y1, x2, y2, options) {
     return this.appendNewChildElement(
       'line',
-      mixin({x1: x1, y1: y1, x2: x2, y2: y2}, this.line.defaults, options)
+      extend({x1: x1, y1: y1, x2: x2, y2: y2}, this.line.defaults, options)
     );
   };
   proto.line.defaults = {
@@ -304,7 +304,7 @@ function ElementWrapper(element) {
   proto.polyline = function(points, options) {
     return this.appendNewChildElement(
       'polyline',
-      mixin({points: points}, this.polyline.defaults, options)
+      extend({points: points}, this.polyline.defaults, options)
     );
   };
   proto.polyline.defaults = {
@@ -315,7 +315,7 @@ function ElementWrapper(element) {
   proto.polygon = function(points, options) {
     return this.appendNewChildElement(
       'polygon',
-      mixin({points: points}, this.polygon.defaults, options)
+      extend({points: points}, this.polygon.defaults, options)
     );
   };
   proto.polygon.defaults = {
@@ -324,10 +324,10 @@ function ElementWrapper(element) {
   }
 
   proto.plainText = function(x, y, characters, options) {
-    var config = mixin({}, this.plainText.defaults, options);
+    var config = extend({}, this.plainText.defaults, options);
     var textElem = this.appendNewChildElement(
       'text',
-      mixin({x: x, y: y}, config)
+      extend({x: x, y: y}, config)
     );
 
     var lines = characters.split('\n'),
@@ -396,18 +396,39 @@ function ElementWrapper(element) {
     return child;
   };
 
-  proto.parentWrapper = function() {
+  proto.parent = function() {
     var parentNode = this.element.parentNode;
     if (!parentNode || parentNode.namespaceURI != svgns)
       return null;
     return wrap(parentNode);
   };
 
-  proto.firstChildWrapper = function() {
-    
+  proto.firstChild = function() {
+    var elem = this.element.firstChild;
+    while (elem && !(elem instanceof SVGElement))
+      elem = elem.nextSibling;
+    return wrap(elem);
   };
 
-  proto.childElementWrappers = function() {
+  proto.lastChild = function() {
+    var elem = this.element.lastChild;
+    while (elem && !(elem instanceof SVGElement))
+      elem = elem.previousSibling;
+    return wrap(elem);
+  };
+
+  proto.nextSibling = function() {
+    var elem = this.element.nextSibling;
+    while (elem && !(elem instanceof SVGElement))
+      elem = elem.nextSibling;
+    return wrap(elem);
+  };
+
+  proto.previousSibling = function() {
+    var elem = this.element.previousSibling;
+    while (elem && !(elem instanceof SVGElement))
+      elem = elem.previousSibling;
+    return wrap(elem);
   };
 
   proto.setAttributes = function(attributes) {
@@ -488,7 +509,7 @@ function ElementWrapper(element) {
       value = this.element.getAttribute(name);
 
     if (this.getAttribute.lookParentPredicate(name, value)) {
-      var parent = this.parentWrapper();
+      var parent = this.parent();
       if (parent)
         return parent.getAttribute(name);
     }
@@ -1060,7 +1081,7 @@ var geom = (function() {
 
 return {
   ElementWrapper: ElementWrapper,
-  mixin: mixin,
+  extend: extend,
   filter: filter,
   toMap: toMap,
   isString: isString,
