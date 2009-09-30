@@ -43,7 +43,7 @@ function Bezier(controlPoints) {
   this.coefficients = this.calcCoefficients(controlPoints);
 }
 Bezier.prototype = {
-  epsilon: 1e-3,
+  epsilon: 1e-6,
   calcCoefficients: function(p) {
     switch (p.length - 1) {
     case 1:
@@ -74,73 +74,60 @@ Bezier.prototype = {
     var segments = [
       {endT: 1, len: this.lengthBetweenPoints(points[0], points[1])}
     ];
-    var divideIndexes = [0];
     var accLen = segments[0].len;
+    var newAccLen;
+    while (true) {
+      var i = this.findMaxLengthSegmentIndex(segments);
+      var t = ((i === 0 ? 0 : segments[i - 1].endT) + segments[i].endT) / 2;
+      var newPoint = this.pointAtT(t);
+      var newSegment1 = {
+        endT: t,
+        len: this.lengthBetweenPoints(points[i], newPoint)
+      };
+      var newSegment2 = {
+        endT: segments[i].endT,
+        len: this.lengthBetweenPoints(newPoint, points[i + 1])
+      };
 
-    while (divideIndexes.length > 0) {
-      var newDivideIndexes = [];
-      var newSegments = [];
-      var newPoints = [];
-      var divideIndexesPos = 0;
-      var divideIndex = divideIndexes[divideIndexesPos];
-      var prevSegment = null;
-      for (var i = 0, n = segments.length; i < n; ++i) {
-        var segment = segments[i];
-        var sp = points[i];
-        var ep = points[i + 1];
-        if (i === divideIndex) {
-          var t = ((prevSegment ? prevSegment.endT : 0) + segment.endT) / 2;
-          var newPoint = this.pointAtT(t);
-          var newSegment1 = {
-            endT: t,
-            len: this.lengthBetweenPoints(sp, newPoint)
-          };
-          var newSegment2 = {
-            endT: segment.endT,
-            len: this.lengthBetweenPoints(newPoint, ep)
-          };
+      points.splice(i + 1, 0, newPoint);
+      segments.splice(i, 1, newSegment1, newSegment2);
+      newAccLen = this.updateSegmentsAccLen(segments);
+console.log('segmentCount=' + segments.length + ', curveLen=' + newAccLen);
+      if (Math.abs(newAccLen - accLen) / accLen < this.epsilon)
+        break;
 
-          newPoints.push(sp);
-          newPoints.push(newPoint);
-          newSegments.push(newSegment1);
-          newSegments.push(newSegment2);
-
-          if (!(Math.abs(n * (newSegment1.len + newSegment2.len - segment.len) / accLen) < this.epsilon)) {
-            newDivideIndexes.push(newSegments.length - 2);
-            newDivideIndexes.push(newSegments.length - 1);
-          }
-
-          divideIndex = divideIndexes[++divideIndexesPos];
-        }
-        else {
-          newPoints.push(sp);
-          newSegments.push(segment);
-        }
-
-        prevSegment = segment;
-      }
-      newPoints.push(points[points.length - 1]);
-
-      points = newPoints;
-      segments = newSegments;
-      divideIndexes = newDivideIndexes;
-
-      accLen = 0;
-      for (var i = 0, n = segments.length; i < n; ++i) {
-        var segment = segments[i];
-        accLen += segment.len;
-        segment.accLen = accLen;
-      }
+      accLen = newAccLen;
     }
 
     this.points = points;
     this.segments = segments;
-    this.curveLength = segments[segments.length - 1].accLen;
+    this.curveLength = accLen;
   },
   isConvergent: function(value, prevValue) {
     return Math.abs((value - prevValue) / prevValue) < this.epsilon;
   },
   lengthBetweenPoints: function(p0, p1) {
     return p1.minus(p0).length();
+  },
+  findMaxLengthSegmentIndex: function(segments) {
+    var i = iMax = 0;
+    var lenMax = segments[i].len;
+    for (++i, n = segments.length; i < n; ++i) {
+      var len = segments[i].len;
+      if (len > lenMax) {
+        lenMax = len;
+        iMax = i;
+      }
+    }
+    return iMax;
+  },
+  updateSegmentsAccLen: function(segments) {
+    var accLen = 0;
+    for (var i = 0, n = segments.length; i < n; ++i) {
+      var segment = segments[i];
+      accLen += segment.len;
+      segment.accLen = accLen;
+    }
+    return accLen;
   }
 };

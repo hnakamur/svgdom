@@ -11,7 +11,7 @@ window.onload = function() {
 
   var controlPoints = [100,200, 200,210, 211,512, 400,200];
 
-  s.path(
+  var path1 = s.path(
     [
       ['M'].concat(controlPoints.slice(0, 2)),
       ['C'].concat(controlPoints.slice(2))
@@ -32,6 +32,7 @@ window.onload = function() {
   console.log('bezier');
   console.log(bezier);
   console.log('segmentCount=' + bezier.segments.length + ', curveLen=' + bezier.curveLength);
+  console.log('path1.getTotalLength()=' + path1.element.getTotalLength());
 
   for (var i = 0, n = bezier.points.length; i < n; ++i) {
     var p = bezier.points[i];
@@ -59,7 +60,7 @@ window.onload = function() {
   <script type="image/svg+xml">
     <svg id="mySVG" width="1200" height="1200" style="border: 1px solid black;">
       <defs>
-        <circle id="point" r="1" fill="#0ff" stroke="none"/>
+        <circle id="point" r="1.5" fill="#0ff" stroke="none"/>
       </defs>
     </svg>
   </script>
