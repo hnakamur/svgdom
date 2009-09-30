@@ -45,7 +45,7 @@ function log(title, object) {
   console.log(object);
 }
 
-function extend(dest /* , sources */) {
+function mix(dest /* , sources */) {
   for (var i = 1, n = arguments.length; i < n; ++i) {
     var src = arguments[i];
     for (var k in src)
@@ -126,12 +126,14 @@ function ElementWrapper(element) {
         'fill',
         'height',
         'id',
+        'opacity',
         'points',
         'r', 'rx', 'ry',
-        'stroke', 'svgdom:uid',
+        'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin',
+        'stroke-miterlimit', 'svgdom:uid',
         'transform',
         'width',
-        'x', 'x1', 'x2',
+        'x', 'x1', 'x2', 'xlink:href',
         'y', 'y1', 'y2'
       ]);
 
@@ -219,7 +221,7 @@ function ElementWrapper(element) {
       unwrap(wrapperUid);
   }
 
-  extend(ElementWrapper, {
+  mix(ElementWrapper, {
     supportedAttributeNames: supportedAttributeNames,
     byId: byId,
     createDocumentFragment: createDocumentFragment,
@@ -238,6 +240,10 @@ function ElementWrapper(element) {
     return parseInt(this.getAttribute('svgdom:uid'));
   };
 
+  proto.use = function(options) {
+    return this.appendNewChildElement('use', options);
+  };
+
   proto.g = function(options) {
     return this.appendNewChildElement('g', options);
   };
@@ -245,7 +251,7 @@ function ElementWrapper(element) {
   proto.path = function(commands, options) {
     return this.appendNewChildElement(
       'path',
-      extend({d: commands}, this.path.defaults, options)
+      mix({d: commands}, this.path.defaults, options)
     );
   };
   proto.path.defaults = {
@@ -256,7 +262,7 @@ function ElementWrapper(element) {
   proto.rect = function(x, y, width, height, options) {
     return this.appendNewChildElement(
       'rect',
-      extend(
+      mix(
         {x: x, y: y, width: width, height: height},
         this.rect.defaults,
         options
@@ -271,7 +277,7 @@ function ElementWrapper(element) {
   proto.circle = function(cx, cy, r, options) {
     return this.appendNewChildElement(
       'circle',
-      extend({cx: cx, cy: cy, r: r}, this.circle.defaults, options)
+      mix({cx: cx, cy: cy, r: r}, this.circle.defaults, options)
     );
   };
   proto.circle.defaults = {
@@ -282,7 +288,7 @@ function ElementWrapper(element) {
   proto.ellipse = function(cx, cy, rx, ry, options) {
     return this.appendNewChildElement(
       'ellipse',
-      extend({cx: cx, cy: cy, rx: rx, ry: ry}, this.ellipse.defaults, options)
+      mix({cx: cx, cy: cy, rx: rx, ry: ry}, this.ellipse.defaults, options)
     );
   };
   proto.ellipse.defaults = {
@@ -293,7 +299,7 @@ function ElementWrapper(element) {
   proto.line = function(x1, y1, x2, y2, options) {
     return this.appendNewChildElement(
       'line',
-      extend({x1: x1, y1: y1, x2: x2, y2: y2}, this.line.defaults, options)
+      mix({x1: x1, y1: y1, x2: x2, y2: y2}, this.line.defaults, options)
     );
   };
   proto.line.defaults = {
@@ -304,7 +310,7 @@ function ElementWrapper(element) {
   proto.polyline = function(points, options) {
     return this.appendNewChildElement(
       'polyline',
-      extend({points: points}, this.polyline.defaults, options)
+      mix({points: points}, this.polyline.defaults, options)
     );
   };
   proto.polyline.defaults = {
@@ -315,7 +321,7 @@ function ElementWrapper(element) {
   proto.polygon = function(points, options) {
     return this.appendNewChildElement(
       'polygon',
-      extend({points: points}, this.polygon.defaults, options)
+      mix({points: points}, this.polygon.defaults, options)
     );
   };
   proto.polygon.defaults = {
@@ -324,10 +330,10 @@ function ElementWrapper(element) {
   }
 
   proto.plainText = function(x, y, characters, options) {
-    var config = extend({}, this.plainText.defaults, options);
+    var config = mix({}, this.plainText.defaults, options);
     var textElem = this.appendNewChildElement(
       'text',
-      extend({x: x, y: y}, config)
+      mix({x: x, y: y}, config)
     );
 
     var lines = characters.split('\n'),
@@ -1081,7 +1087,7 @@ var geom = (function() {
 
 return {
   ElementWrapper: ElementWrapper,
-  extend: extend,
+  mix: mix,
   filter: filter,
   toMap: toMap,
   isString: isString,

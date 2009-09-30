@@ -1,0 +1,72 @@
+<html>
+<head>
+<title>svgdom - A SVG DOM manipulator which is easy to use for common tasks.</title>
+<script src="../svgweb/src/svg.js" data-path="../svgweb/src/"></script>
+<script src="svgdom.js"></script>
+<script src="bezier.js"></script>
+<script>
+window.onload = function() {
+  // build up a element tree.
+  var s = svgdom.ElementWrapper.byId('mySVG');
+
+  var p = [100,200, 200,410, 211,512, 10,600];
+  var n = 32;
+
+  s.path(
+    [
+      ['M', p[0], p[1]],
+      ['C', p[2], p[3], p[4], p[5], p[6], p[7]]
+    ],
+    { id: 'path1', stroke: '#f00', opacity: 0.5, 'stroke-width': 4 }
+  );
+
+  s.path(
+    [
+      ['M', p[0], p[1]],
+      ['L', p[2], p[3], p[4], p[5], p[6], p[7]]
+    ],
+    { stroke: '#0f0' }
+  );
+
+  var bezier = new Bezier(Vector.fromFlatArray(p));
+  var pts = [];
+  for (var i = 0; i <= n; ++i) {
+    var t = i / n;
+    pts.push(bezier.pointAtT(t));
+  }
+  bezier.divideToSegments();
+  console.log('bezier');
+  console.log(bezier);
+
+  for (var i = 0; i <= n; ++i) {
+    var pt = pts[i];
+    s.use({
+      x: pt.x,
+      y: pt.y,
+      'xlink:href': '#point'
+    });
+  }
+
+  xy = Vector.toFlatArray(pts);
+  s.path(
+    [
+      ['M'].concat(xy.slice(0, 2)),
+      ['L'].concat(xy.slice(2))
+    ],
+    { stroke: '#00f', opacity: 0.6, 'stroke-width': 1 }
+  );
+
+  svgdom.ElementWrapper.unwrapAll();
+}
+</script>
+</head>
+<body>
+  <script type="image/svg+xml">
+    <svg id="mySVG" width="1200" height="1200" style="border: 1px solid black;">
+      <defs>
+        <circle id="point" r="3" fill="#0ff" stroke="none"/>
+      </defs>
+    </svg>
+  </script>
+</body>
+</html>

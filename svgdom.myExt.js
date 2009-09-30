@@ -1,12 +1,12 @@
-svgdom.extend(svgdom.ElementWrapper.prototype, (function() {
-  var extend = svgdom.extend,
+svgdom.mix(svgdom.ElementWrapper.prototype, (function() {
+  var mix = svgdom.mix,
       filter = svgdom.filter,
       geom = svgdom.geom,
       rad2deg = geom.rad2deg,
       deg2rad = geom.deg2rad;
 
   function curve(pathCommands, options) {
-    var config = extend({}, curve.defaults, options);
+    var config = mix({}, curve.defaults, options);
     var arrowsConfig = config.arrows;
         arrowAtStart = arrowsConfig && arrowsConfig.start,
         arrowAtEnd = arrowsConfig && arrowsConfig.end,
@@ -132,12 +132,12 @@ svgdom.extend(svgdom.ElementWrapper.prototype, (function() {
   };
 
   function arrow(x, y, angle, options) {
-    var config = extend({}, arrow.defaults, options);
+    var config = mix({}, arrow.defaults, options);
     var w = config.arrowLength;
     var h = w * Math.tan(deg2rad(config.arrowAngle / 2));
     return this.polygon(
       [0, 0, -w, h, -w, -h],
-      extend(
+      mix(
         {transform: [['translate', x, y], ['rotate', angle]]},
         filter(config, ['class', 'stroke', 'fill'])
       )

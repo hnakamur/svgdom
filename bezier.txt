@@ -1,0 +1,136 @@
+quadratic bezier curves
+
+B(t) = (1 - t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2 (0 <= t <= 1)
+
+2 cubic bezier curves
+
+B1x(t) = a1 * t^3 + b1 * t^2 + c1 * t + d1
+B1y(t) = e1 * t^3 + f1 * t^2 + g1 * t + h1
+
+B2x(t) = a2 * t^3 + b2 * t^2 + c2 * t + d2
+B2y(t) = e2 * t^3 + f2 * t^2 + g2 * t + h2
+
+intersection
+0 = B1x(t) - B2x(t)
+0 = B1y(t) - B2y(t)
+
+a1 - a2 = a
+b1 - b2 = b
+c1 - c2 = c
+d1 - d2 = d
+
+e1 - e2 = e
+f1 - f2 = f
+g1 - g2 = g
+h1 - h2 = h
+
+0 = a * t^3 + b * t^2 + c * t + d
+0 = e * t^3 + f * t^2 + g * t + h
+
+det{{a,b,c,d,0,0},{0,a,b,c,d,0},{0,0,a,b,c,d},{e,f,g,h,0,0},{0,e,f,g,h,0},{0,0,e,f,g,h}}
+= a3*h3 - a2*b*g*h2 - 2*a2*c*g2*h - 3*a2*d*e*h2 + 3*a2*d*f*g*h - a2*d*g3 +
+  a*b2*f*h2 + 3*a*b*c*e*h2 - a*b*c*f*g*h - 2*a*b*d*f2*h + a*b*d*f*g2 -
+  2*a*c2*e*g*h + a*c2*f2*h + a*c*d*e*f*h + 2*a*c*d*e*g2 - a*c*d*f2*g + 3*a*d2*e2*h -
+  3*a*d2*e*f*g + a*d2*f3 - b3*e*h2 + b2*c*e*g*h + 2*b2*d*e*f*h - b2*d*e*g2 - b*c2*e*f*h -
+  3*b*c*d*e2*h + b*c*d*e*f*g + 2*b*d2*e2*g - b*d2*e*f2 + c3*e2*h - c2*d*e2*g + c*d2*e2*f - d3*e3
+where a3 = a^3, ...
+http://www.wolframalpha.com/input/?i=det{{a%2Cb%2Cc%2Cd%2C0%2C0}%2C{0%2Ca%2Cb%2Cc%2Cd%2C0}%2C{0%2C0%2Ca%2Cb%2Cc%2Cd}%2C{e%2Cf%2Cg%2Ch%2C0%2C0}%2C{0%2Ce%2Cf%2Cg%2Ch%2C0}%2C{0%2C0%2Ce%2Cf%2Cg%2Ch}}
+
+|a b c d 0 0|     |a b c d 0|     |b c d 0 0|
+|0 a b c d 0|     |0 a b c d|     |a b c d 0|
+|0 0 a b c d| = a*|f g h 0 0| - e*|0 a b c d|
+|e f g h 0 0|     |e f g h 0|     |e f g h 0|
+|0 e f g h 0|     |0 e f g h|     |0 e f g h|
+|0 0 e f g h|
+
+        |a b c d|   |a b c d|       |b c d 0|   |b c d 0|
+= a*(-d*|f g h 0|+h*|0 a b c|)-e*(d*|a b c d|+h*|a b c d|)
+        |e f g h|   |f g h 0|       |e f g h|   |0 a b c|
+        |0 e f g|   |e f g h|       |0 e f g|   |e f g h|
+
+
+
+
+
+
+
+|a b c d 0 0|
+|0 a b c d 0|
+|0 0 a b c d|
+|e f g h 0 0|
+|0 e f g h 0|
+|0 0 e f g h|
+
+      |a b c d 0|       |b c d 0 0|
+      |0 a b c d|       |a b c d 0|
+= a * |f g h 0 0| - e * |0 a b c d|
+      |e f g h 0|       |e f g h 0|
+      |0 e f g h|       |0 e f g h|
+
+|a b c d 0| 
+|0 a b c d|  
+|f g h 0 0|
+|e f g h 0|
+|0 e f g h| 
+
+       |a b c d|       |a b c d|
+= -d * |f g h 0| + h * |0 a b c|
+       |e f g h|       |f g h 0|
+       |0 e f g|       |e f g h|
+
+|a b c d|       |g h 0|       |b c d|       |b c d|
+|f g h 0| = a * |f g h| - f * |f g h| + e * |g h 0|
+|e f g h|       |e f g|       |e f g|       |e f g|
+|0 e f g|
+
+|a b c d|       |a b c|       |b c d|       |b c d|
+|0 a b c| = a * |g h 0| + f * |a b c| - e * |a b c|
+|f g h 0|       |f g h|       |f g h|       |g h 0|
+|e f g h|
+
+--------
+
+
+|a b c|       |e f|       |b c|       |b c|
+|d e f| = a * |h i| - d * |h i| + g * |e f|
+|g h i|
+        = a*(e*i-h*f) - d*(b*i-h*c) + g*(b*f-e*c)
+det{{a,b,c},{d,e,f},{g,h,i}}
+http://www.wolframalpha.com/input/?i=det{{a%2Cb%2Cc}%2C{d%2Ce%2Cf}%2C{g%2Ch%2Ci}}
+
+det{{a,b,c,d},{e,f,g,h},{i,j,k,l},{m,n,o,p}}
+
+References:
+[1] http://stackoverflow.com/questions/109364/bezier-clipping
+[2] http://en.wikipedia.org/wiki/Sylvester_matrix
+[3] http://en.wikipedia.org/wiki/Cofactor_expansion
+
+function determinant(m) {
+  var order = m.length;
+  if (order === 2)
+    return m[0][0] * m[1][1] - m[0][1] * m[1][0];
+
+  var sum = 0;
+  for (var i = 0; i < order; ++i) {
+    
+  }
+  return sum;
+}
+
+function minorMatrix(m, i, j) {
+  var order = m.length;
+  var b = [];
+  for (var k = 0; k < order; ++k) {
+    if (k === i)
+      continue;
+    var row = [];
+    for (var l = 0; l < order; ++l) {
+      if (l === i)
+        continue;
+      row.push(m[i][j]);
+    }
+    b.push(row);
+  }
+  return b;
+}
+// http://en.wikipedia.org/wiki/Cofactor_expansion
