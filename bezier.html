@@ -9,51 +9,46 @@ window.onload = function() {
   // build up a element tree.
   var s = svgdom.ElementWrapper.byId('mySVG');
 
-  var p = [100,200, 200,410, 211,512, 10,600];
-  var n = 32;
+  var controlPoints = [100,200, 200,210, 211,512, 400,200];
 
   s.path(
     [
-      ['M', p[0], p[1]],
-      ['C', p[2], p[3], p[4], p[5], p[6], p[7]]
+      ['M'].concat(controlPoints.slice(0, 2)),
+      ['C'].concat(controlPoints.slice(2))
     ],
-    { id: 'path1', stroke: '#f00', opacity: 0.5, 'stroke-width': 4 }
+    { id: 'path1', stroke: '#f00', opacity: 0.5, 'stroke-width': 1 }
   );
 
   s.path(
     [
-      ['M', p[0], p[1]],
-      ['L', p[2], p[3], p[4], p[5], p[6], p[7]]
+      ['M'].concat(controlPoints.slice(0, 2)),
+      ['L'].concat(controlPoints.slice(2))
     ],
     { stroke: '#0f0' }
   );
 
-  var bezier = new Bezier(Vector.fromFlatArray(p));
-  var pts = [];
-  for (var i = 0; i <= n; ++i) {
-    var t = i / n;
-    pts.push(bezier.pointAtT(t));
-  }
+  var bezier = new Bezier(Vector.fromFlatArray(controlPoints));
   bezier.divideToSegments();
   console.log('bezier');
   console.log(bezier);
+  console.log('segmentCount=' + bezier.segments.length + ', curveLen=' + bezier.curveLength);
 
-  for (var i = 0; i <= n; ++i) {
-    var pt = pts[i];
+  for (var i = 0, n = bezier.points.length; i < n; ++i) {
+    var p = bezier.points[i];
     s.use({
-      x: pt.x,
-      y: pt.y,
+      x: p.x,
+      y: p.y,
       'xlink:href': '#point'
     });
   }
 
-  xy = Vector.toFlatArray(pts);
+  xy = Vector.toFlatArray(bezier.points);
   s.path(
     [
       ['M'].concat(xy.slice(0, 2)),
       ['L'].concat(xy.slice(2))
     ],
-    { stroke: '#00f', opacity: 0.6, 'stroke-width': 1 }
+    { stroke: '#00f', opacity: 0.2, 'stroke-width': 1 }
   );
 
   svgdom.ElementWrapper.unwrapAll();
@@ -64,7 +59,7 @@ window.onload = function() {
   <script type="image/svg+xml">
     <svg id="mySVG" width="1200" height="1200" style="border: 1px solid black;">
       <defs>
-        <circle id="point" r="3" fill="#0ff" stroke="none"/>
+        <circle id="point" r="1" fill="#0ff" stroke="none"/>
       </defs>
     </svg>
   </script>
