@@ -6,51 +6,104 @@
 <script src="bezier.js"></script>
 <script>
 window.onload = function() {
+  var mix = svgdom.mix;
+
   // build up a element tree.
   var s = svgdom.ElementWrapper.byId('mySVG');
 
-  var controlPoints = [100,200, 200,210, 211,512, 400,200];
+//  var controlPoints = [100,200, 210,260, 210,310, 100,400]; // 0 infection
+  var controlPoints = [100,200, 210,200, 40,310, 200,400]; // 1 infection
+//  var controlPoints = [100,200, 200,410, 211,312, 100,400]; //  2 infection
+//  var controlPoints = [100,200, 300,400, 300,200, 100,400]; // cusp 1 infections
+//  var controlPoints = [100,200, 320,400, 300,200, 80,400]; // cusp 2 infections
+//  var controlPoints = [100,200, 300,200, 200,200, 400,200];
+//  var controlPoints = [100,200, 140,60, 300,20, 400,160]; //  0 infection
+//  var controlPoints = [100,100, 200,100, 100,200, 200,200]; //  1 infection
+//  var controlPoints = [100,100, 200,100, 100,200, 300,240]; //  1 infection
+//  var controlPoints = [100,100, 300,100, 100,110, 300,240]; //  1 infection
 
-  var path1 = s.path(
-    [
-      ['M'].concat(controlPoints.slice(0, 2)),
-      ['C'].concat(controlPoints.slice(2))
-    ],
-    { id: 'path1', stroke: '#f00', opacity: 0.5, 'stroke-width': 1 }
-  );
+  function drawBezier(bezier, options) {
+    console.log(bezier);
+    var config = mix({}, drawBezier.defaults, options);
+    var xy = Vector.toFlatArray(bezier.points);
 
-  s.path(
-    [
-      ['M'].concat(controlPoints.slice(0, 2)),
-      ['L'].concat(controlPoints.slice(2))
-    ],
-    { stroke: '#0f0' }
-  );
+    var path = s.path(
+      [
+        ['M'].concat(xy.slice(0, 2)),
+        ['C'].concat(xy.slice(2))
+      ],
+      { stroke: config.curveStroke, opacity: config.curveOpacity }
+    );
+    console.log('path.getTotalLength()=' + path.element.getTotalLength());
+    console.log('path.calcCurveLength()=' + bezier.calcCurveLength());
+    console.log('path.calcCurveLengthBySimpson()=' + bezier.calcCurveLengthBySimpson());
 
-  var bezier = new Bezier(Vector.fromFlatArray(controlPoints));
-  bezier.divideToSegments();
-  console.log('bezier');
-  console.log(bezier);
-  console.log('segmentCount=' + bezier.segments.length + ', curveLen=' + bezier.curveLength);
-  console.log('path1.getTotalLength()=' + path1.element.getTotalLength());
+    s.path(
+      [
+        ['M'].concat(xy.slice(0, 2)),
+        ['L'].concat(xy.slice(2))
+      ],
+      { stroke: config.hullStroke, opacity: config.hullOpacity }
+    );
 
-  for (var i = 0, n = bezier.points.length; i < n; ++i) {
-    var p = bezier.points[i];
-    s.use({
-      x: p.x,
-      y: p.y,
-      'xlink:href': '#point'
-    });
+    var ts = bezier.inflectionPointTs();
+console.log('ts');
+console.log(ts);
+    for (var i = 0, n = ts.length; i < n; ++i) {
+      var p = bezier.pointAtT(ts[i]);
+      s.use({
+        x: p.x,
+        y: p.y,
+        'xlink:href': '#point'
+      });
+    }
+
+    if (config.showMidPoints) {
+      var t = 0.2;
+      var midPoints = bezier.intermediatePointsAtT(t),
+          midXy = Vector.toFlatArray(midPoints);
+      s.path(
+        [
+          ['M'].concat(midXy.slice(0, 2)),
+          ['L'].concat(midXy.slice(2))
+        ],
+        { stroke: '#00f', opacity: config.hullOpacity }
+      );
+
+      var bezier2 = new Bezier(midPoints);
+      var midPoints2 = bezier2.intermediatePointsAtT(t),
+          midXy2 = Vector.toFlatArray(midPoints2);
+      s.path(
+        [
+          ['M'].concat(midXy2.slice(0, 2)),
+          ['L'].concat(midXy2.slice(2))
+        ],
+        { stroke: '#000', opacity: config.hullOpacity }
+      );
+    }
+  }
+  drawBezier.defaults = {
+    curveStroke: '#f00',
+    curveOpacity: 0.5,
+    hullStroke: '#800',
+    hullOpacity: 0.5
   }
 
-  xy = Vector.toFlatArray(bezier.points);
-  s.path(
-    [
-      ['M'].concat(xy.slice(0, 2)),
-      ['L'].concat(xy.slice(2))
-    ],
-    { stroke: '#00f', opacity: 0.2, 'stroke-width': 1 }
-  );
+  var bezier = new Bezier(Vector.fromFlatArray(controlPoints));
+  drawBezier(bezier, {
+    showMidPoints: true, curveStroke: '#f00', curveOpacity: 0.3
+  });
+
+  var segments = bezier.subdivideAtInfectionPoints(), n = segments.length;
+//  var colors = ['#0f0', '#ff0', '#f0f'];
+  var colors = ['none', 'none', 'none'];
+  if (n > 1) {
+    for (var i = 0; i < n; ++i) {
+      drawBezier(segments[i], {
+        curveStroke: colors[i], curveOpacity: 0.5, hullStroke: colors[i]
+      });
+    }
+  }
 
   svgdom.ElementWrapper.unwrapAll();
 }
@@ -60,7 +113,7 @@ window.onload = function() {
   <script type="image/svg+xml">
     <svg id="mySVG" width="1200" height="1200" style="border: 1px solid black;">
       <defs>
-        <circle id="point" r="1.5" fill="#0ff" stroke="none"/>
+        <circle id="point" r="1" fill="#0ff" stroke="none"/>
       </defs>
     </svg>
   </script>
