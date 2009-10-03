@@ -51,6 +51,7 @@ Vector.prototype = {
 function Bezier(points) {
   this.points = arguments.length == 1 ? points : arguments;
 }
+Bezier.epsilon = 1e-6;
 Bezier.prototype = {
   pointAtT: function(t) {
     return Vector.polynomial(t, this.coefficients());
@@ -119,7 +120,7 @@ Bezier.prototype = {
     }
     return this._secondDerivativeCoefficients;
   },
-  inflectionPointTs: function() {
+  inflectionPointTs: function(includeEnds) {
     // http://www.caffeineowl.com/graphics/2d/vectorial/cubic-inflexion.html
     var coef = this.coefficients(), n = coef.length;
     switch (n) {
@@ -131,21 +132,11 @@ Bezier.prototype = {
         a = coef[1].scale(oneThird), b = coef[2].scale(oneThird), c = coef[3];
         roots = realRootsOfQuadraticEquation(
           b.crossProductZ(c), a.crossProductZ(c), a.crossProductZ(b));
-      return this._filterTs(roots);
+      var predicate = includeEnds ?
+        function(t) { return 0 <= t && t <= 1; } :
+        function(t) { return Bezier.epsilon <= t && t <= 1 - Bezier.epsilon; };
+      return filterValues(roots, predicate);
     }
-  },
-  _filterTs: function(ts) {
-    if (ts) {
-      var ret = [], t;
-      for (var i = 0, n = ts.length; i < n; ++i) {
-        t = ts[i];
-        if (0 <= t && t <= 1)
-          ret.push(t);
-      }
-      return ret;
-    }
-    else
-      return ts;
   },
   subdivideAtInfectionPoints: function() {
     var ts = this.inflectionPointTs(), n = ts.length;
@@ -183,10 +174,60 @@ Bezier.prototype = {
     }
   },
   calcCurveLength: function() {
-    var self = this;
-    return calcIntegrationBySimpson(function(t) {
-      return self.derivativeAtT(t).length();
-    }, 0, 1, 1e-5);
+//    if (this.inflectionPointTs().length > 0) {
+//      var segments = this.subdivideAtInfectionPoints();
+//      var length = 0;
+//      for (var i = 0, n = segments.length; i < n; ++i)
+//        length += segments[i].calcCurveLength();
+//      return length;
+//    }
+
+    var segments = this.segments();
+    return segments[segments.length - 1].accLen;
+  },
+  getTAtLength: function(length) {
+    var segments = this.segments();
+    var index = binarySearch(segments, 'accLen', length);
+    if (index == -1)
+      return undefined;
+    var segment = segments[index];
+    var accLen = segment.accLen;
+    if (length == accLen || index == segments.length - 1)
+      return segment.t;
+    var nextSegment = segments[index + 1];
+    return calcLinearInterpolation(length, accLen, nextSegment.accLen,
+        segment.t, nextSegment.t);
+  },
+  segments: function() {
+    if (!this._segments) {
+      var segments = [];
+      var self = this;
+      var length = calcIntegrationBySimpson(function(t) {
+        var deriv = self.derivativeAtT(t);
+        var derivLen = deriv.length();
+        segments.push({t: t, deriv: deriv, derivLen: derivLen});
+        return derivLen;
+      }, 0, 1, Bezier.epsilon);
+
+      segments.sort(function(a, b) { return a.t - b.t; });
+
+      var n = segments.length, h = 1 / (n - 1);
+      var derivLen0 = segments[0].derivLen;
+      var sumOdd = 0, sumEven = 0;
+      var i = 0;
+      segments[i].len = 0;
+      while (++i < n) {
+        var derivLen = segments[i].derivLen;
+        segments[i].accLen =
+          h / 3 * (derivLen0 + 4 * sumOdd + 2 * sumEven + derivLen);
+        if (i % 2)
+          sumOdd += derivLen;
+        else
+          sumEven += derivLen;
+      }
+      this._segments = segments;
+    }
+    return this._segments;
   }
 };
 
@@ -223,20 +264,57 @@ function calcIntegrationBySimpson(f, a, b, epsilon) {
     sumOdd = 0;
     for (var i = 1; i < n; i += 2)
       sumOdd += f(a + h * i);
-    newResult = h / 3 * (sumEnds + 2 * sumEven + 4 * sumOdd);
+    newResult = h / 3 * (sumEnds + 4 * sumOdd + 2 * sumEven);
     if (Math.abs((newResult - oldResult) / oldResult) < epsilon)
       break;
     oldResult = newResult;
   }
-console.log('simpson n=' + n + ', Result=' + newResult);
+//console.log('simpson n=' + n + ', Result=' + newResult);
   return newResult;
+}
+
+function filterValues(values, predicate) {
+  if (values) {
+    var ret = [], value;
+    for (var i = 0, n = values.length; i < n; ++i) {
+      value = values[i];
+      if (predicate(value))
+        ret.push(value);
+    }
+    return ret;
+  }
+  else
+    return values;
+}
+
+function binarySearch(mappings, searchIndex, searchValue) {
+  // http://en.wikipedia.org/wiki/Binary_search_algorithm
+  var iMin = 0, iMax = mappings.length - 1, iMid, midValue;
+  if (searchValue < mappings[iMin][searchIndex] ||
+      searchValue > mappings[iMax][searchIndex])
+    return -1;
+  do {
+    iMid = Math.floor((iMin + iMax) / 2);
+    midValue = mappings[iMid][searchIndex];
+    if (searchValue > midValue)
+      iMin = iMid + 1;
+    else
+      iMax = iMid - 1;
+  } while (midValue !== searchValue && iMin <= iMax);
+  return iMid;
+}
+
+function calcLinearInterpolation(x, x0, x1, y0, y1) {
+  // http://en.wikipedia.org/wiki/Linear_interpolation
+  return y0 + (x - x0) * (y1 - y0) / (x1 - x0);
 }
 
 return {
   Vector: Vector,
   Bezier: Bezier,
   realRootsOfQuadraticEquation: realRootsOfQuadraticEquation,
-  calcIntegrationBySimpson: calcIntegrationBySimpson
+  calcIntegrationBySimpson: calcIntegrationBySimpson,
+  filterValues: filterValues
 };
   
 }();
