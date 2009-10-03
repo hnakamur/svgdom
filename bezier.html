@@ -3,7 +3,7 @@
 <title>svgdom - A SVG DOM manipulator which is easy to use for common tasks.</title>
 <script src="../svgweb/src/svg.js" data-path="../svgweb/src/"></script>
 <script src="svgdom.js"></script>
-<script src="bezier.js"></script>
+<script src="geom2d.js"></script>
 <script>
 window.onload = function() {
   var mix = svgdom.mix;
@@ -25,7 +25,7 @@ window.onload = function() {
   function drawBezier(bezier, options) {
     console.log(bezier);
     var config = mix({}, drawBezier.defaults, options);
-    var xy = Vector.toFlatArray(bezier.points);
+    var xy = geom2d.Vector.toFlatArray(bezier.points);
 
     var path = s.path(
       [
@@ -36,7 +36,6 @@ window.onload = function() {
     );
     console.log('path.getTotalLength()=' + path.element.getTotalLength());
     console.log('path.calcCurveLength()=' + bezier.calcCurveLength());
-    console.log('path.calcCurveLengthBySimpson()=' + bezier.calcCurveLengthBySimpson());
 
     s.path(
       [
@@ -61,7 +60,7 @@ console.log(ts);
     if (config.showMidPoints) {
       var t = 0.2;
       var midPoints = bezier.intermediatePointsAtT(t),
-          midXy = Vector.toFlatArray(midPoints);
+          midXy = geom2d.Vector.toFlatArray(midPoints);
       s.path(
         [
           ['M'].concat(midXy.slice(0, 2)),
@@ -70,9 +69,9 @@ console.log(ts);
         { stroke: '#00f', opacity: config.hullOpacity }
       );
 
-      var bezier2 = new Bezier(midPoints);
+      var bezier2 = new geom2d.Bezier(midPoints);
       var midPoints2 = bezier2.intermediatePointsAtT(t),
-          midXy2 = Vector.toFlatArray(midPoints2);
+          midXy2 = geom2d.Vector.toFlatArray(midPoints2);
       s.path(
         [
           ['M'].concat(midXy2.slice(0, 2)),
@@ -89,7 +88,7 @@ console.log(ts);
     hullOpacity: 0.5
   }
 
-  var bezier = new Bezier(Vector.fromFlatArray(controlPoints));
+  var bezier = new geom2d.Bezier(geom2d.Vector.fromFlatArray(controlPoints));
   drawBezier(bezier, {
     showMidPoints: true, curveStroke: '#f00', curveOpacity: 0.3
   });

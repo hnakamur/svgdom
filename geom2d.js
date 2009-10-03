@@ -1,3 +1,5 @@
+var geom2d = function() {
+
 function Vector(x, y) {
   this.x = +x;
   this.y = +y;
@@ -157,13 +159,6 @@ Bezier.prototype = {
       return segments[0].subdivideAtT(ts[0] / t1).concat(segments[1]);
     }
   },
-//  pointAtT2: function(t) {
-//    var points = this.points;
-//    if (points.length == 2)
-//      return points[0].plus(points[1].minus(points[0]).scale(t));
-//    else
-//      return this.pointAtT2(t, this.intermediatePointAtT(t));
-//  },
   intermediatePointsAtT: function(t) {
     var newPoints = [], points = this.points, n = points.length;
     for (var i = 0; i < n - 1; ++i)
@@ -187,67 +182,12 @@ Bezier.prototype = {
       return [new Bezier(p[0], q[0], r[0], s), new Bezier(s, r[1], q[2], p[3])];
     }
   },
-  bezLength: function() {
-Bezier.bezLengthCallCount = (Bezier.bezLengthCallCount || 0) + 1;
-    var len = this.controlPointsLength();
-    var newLen;
-    while (true) {
-      var b = this.controlPoints;
-      var bl = [], br = [];
-      bl[0] = b[0];
-      bl[1] = b[0].plus(b[1]).scale(0.5);
-      var mid = b[1].plus(b[2]).scale(0.5);
-      bl[2] = bl[1].plus(mid).scale(0.5);
-      br[3] = b[3];
-      br[2] = b[2].plus(b[3]).scale(0.5);
-      br[1] = br[2].plus(mid).scale(0.5);
-      br[0] = br[1].plus(bl[2]).scale(0.5);
-      bl[3] = br[0];
-      newLen = new Bezier(bl).controlPointsLength() + new Bezier(br).bezLength();
-      if (Math.bas(newLen - len) / len < this.epsilon)
-        break;
-    }
-    return newLen;
-  },
-  controlPointsLength: function() {
-    var b = this.controlPoints;
-    var p0 = b[0].minus(b[1]);
-    var p1 = b[2].minus(b[1]);
-    var p3 = b[3].minus(b[2]);
-    var len0 = p0.length();
-    var len1 = p1.length();
-    var len3 = p3.length();
-    return len0 + len1 + len3;
-  },
   calcCurveLength: function() {
-    var n = 1;
-    var w = 1 / n;
-    var sum = this.derivativeAtT(0).length() + this.derivativeAtT(1).length();
-    var oldLen = 0.5 * w * sum;
-    var newLen;
-    while (true) {
-      n = 2 * n;
-      w = 1 / n;
-      for (var i = 1; i <= n; i += 2)
-        sum += 2 * this.derivativeAtT(w * i).length();
-      newLen = 0.5 * w * sum;
-      if (this.isConvergent(newLen, oldLen))
-        break;
-      oldLen = newLen;
-    }
-console.log('n=' + n + ', len=' + newLen);
-    return newLen;
-  },
-  calcCurveLengthBySimpson: function() {
     var self = this;
     return calcIntegrationBySimpson(function(t) {
       return self.derivativeAtT(t).length();
-    }, 0, 1, this.epsilon);
-  },
-  isConvergent: function(value, prevValue) {
-    return Math.abs((value - prevValue) / prevValue) < this.epsilon;
-  },
-  epsilon: 1e-5
+    }, 0, 1, 1e-5);
+  }
 };
 
 // a * x^2 + b * x + c = 0
@@ -269,6 +209,7 @@ function realRootsOfQuadraticEquation(a, b, c) {
 }
 
 function calcIntegrationBySimpson(f, a, b, epsilon) {
+  // http://en.wikipedia.org/wiki/Simpson%27s_rule
   var n = 2;
   var h = (b - a) / n;
   var sumEnds = f(a) + f(b);
@@ -290,3 +231,12 @@ function calcIntegrationBySimpson(f, a, b, epsilon) {
 console.log('simpson n=' + n + ', Result=' + newResult);
   return newResult;
 }
+
+return {
+  Vector: Vector,
+  Bezier: Bezier,
+  realRootsOfQuadraticEquation: realRootsOfQuadraticEquation,
+  calcIntegrationBySimpson: calcIntegrationBySimpson
+};
+  
+}();
