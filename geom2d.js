@@ -1,8 +1,8 @@
 var geom2d = function() {
 
 function Vector(x, y) {
-  this.x = +x;
-  this.y = +y;
+  this.x = Number(x);
+  this.y = Number(y);
 }
 Vector.fromFlatArray = function(xy) {
   var points = [];
@@ -23,7 +23,7 @@ Vector.toFlatArray = function(vectors) {
 Vector.polynomial = function(t, constants) {
   var i = constants.length - 1, p = constants[i];
   while (--i >= 0)
-    p = constants[i].plus(p.scale(t));
+    p = constants[i].add(p.scale(t));
   return p;
 };
 Vector.prototype = {
@@ -31,10 +31,10 @@ Vector.prototype = {
     var x = this.x, y = this.y;
     return Math.sqrt(x * x + y * y);
   },
-  plus: function(p) {
+  add: function(p) {
     return new Vector(this.x + p.x, this.y + p.y);
   },
-  minus: function(p) {
+  subtract: function(p) {
     return new Vector(this.x - p.x, this.y - p.y);
   },
   scale: function(s) {
@@ -48,8 +48,88 @@ Vector.prototype = {
   }
 }
 
+function Matrix(elements) {
+  this.elements = elements;
+  var m = this.rowSize = elements.length;
+  var n = this.columnSize = elements[0].length;
+  for (var i = 1; i < m; ++i) {
+    if (elements[i].length !== n)
+      throw new Error('Column size of all rows must be the same.');
+  }
+}
+Matrix.prototype = {
+  isSameSize: function(matrix) {
+    return this.rowSize === matrix.rowSize &&
+        this.columnSize === matrix.columnSize;
+  },
+  add: function(matrix) {
+    if (!this.isSameSize(matrix))
+      throw new Error('Cannot add a matrix of different size.');
+    var m = this.rowSize,
+        n = this.columnSize,
+        a = this.elements,
+        b = matrix.elements,
+        c = [];
+    for (var i = 0; i < m; ++i) {
+      c[i] = [];
+      for (var j = 0; j < n; ++j)
+        c[i][j] = a[i][j] + b[i][j];
+    }
+    return new Matrix(c);
+  },
+  subtract: function(matrix) {
+    if (!this.isSameSize(matrix))
+      throw new Error('Cannot subtract a matrix of different size.');
+    var m = this.rowSize,
+        n = this.columnSize,
+        a = this.elements,
+        b = matrix.elements,
+        c = [];
+    for (var i = 0; i < m; ++i) {
+      c[i] = [];
+      for (var j = 0; j < n; ++j)
+        c[i][j] = a[i][j] - b[i][j];
+    }
+    return new Matrix(c);
+  },
+  scale: function(s) {
+      throw new Error('Cannot subtract a matrix of different size.');
+    var m = this.rowSize,
+        n = this.columnSize,
+        a = this.elements
+        c = [];
+    for (var i = 0; i < m; ++i) {
+      c[i] = [];
+      for (var j = 0; j < n; ++j)
+        c[i][j] = s * a[i][j];
+    }
+    return new Matrix(c);
+  },
+  multiply: function(matrix) {
+    if (this.columnSize !== matrix.rowSize)
+      throw new Error('Cannot multiply a matrix whose row size does not equal to this matrix\'s column size.');
+    var m = this.rowSize,
+        n = this.columnSize,
+        p = matrix.columnSize,
+        a = this.elements,
+        b = matrix.elements,
+        c = [],
+        cij;
+    for (var i = 0; i < m; ++i) {
+      c[i] = [];
+      for (var j = 0; j < p; ++j) {
+        cij = 0;
+        for (var r = 0; r < n; ++r)
+          cij += a[i][r] * b[r][j];
+        c[i][j] = cij;
+      }
+    }
+    return new Matrix(c);
+  }
+}
+
 function Bezier(points) {
-  this.points = arguments.length == 1 ? points : arguments;
+  this.points = points;
 }
 Bezier.epsilon = 1e-6;
 Bezier.prototype = {
@@ -62,19 +142,19 @@ Bezier.prototype = {
       switch (n) {
       case 2:
         var p0 = p[0], p1 = p[1];
-        this._coefficients = [p0, p1.minus(p0)];
+        this._coefficients = [p0, p1.subtract(p0)];
         break;
       case 3:
         var p0 = p[0], p1 = p[1], p2 = p[2],
-            p10 = p1.minus(p0), p21 = p2.minus(p1);
-        this._coefficients = [p0, p10.scale(2), p21.minus(p10)];
+            p10 = p1.subtract(p0), p21 = p2.subtract(p1);
+        this._coefficients = [p0, p10.scale(2), p21.subtract(p10)];
         break;
       case 4:
         var p0 = p[0], p1 = p[1], p2 = p[2], p3 = p[3],
-            p10 = p1.minus(p0), p21 = p2.minus(p1), p32 = p3.minus(p2),
-            p21_10 = p21.minus(p10), p32_21 = p32.minus(p21);
+            p10 = p1.subtract(p0), p21 = p2.subtract(p1), p32 = p3.subtract(p2),
+            p21_10 = p21.subtract(p10), p32_21 = p32.subtract(p21);
         this._coefficients =
-          [p0, p10.scale(3), p21_10.scale(3), p32_21.minus(p21_10)];
+          [p0, p10.scale(3), p21_10.scale(3), p32_21.subtract(p21_10)];
         break;
       }
     }
@@ -153,7 +233,7 @@ Bezier.prototype = {
   intermediatePointsAtT: function(t) {
     var newPoints = [], points = this.points, n = points.length;
     for (var i = 0; i < n - 1; ++i)
-      newPoints.push(new Bezier(points[i], points[i + 1]).pointAtT(t));
+      newPoints.push(new Bezier([points[i], points[i + 1]]).pointAtT(t));
     return newPoints;
   },
   subdivideAtT: function(t) {
@@ -161,16 +241,17 @@ Bezier.prototype = {
     switch (n) {
     case 2:
       var q = this.pointAtT(t);
-      return [new Bezier(p[0], q), new Bezier(q, p[1])];
+      return [new Bezier([p[0], q]), new Bezier(q, p[1])];
     case 3:
       var q = this.intermediatePointsAtT(t),
           r = new Bezier(q).pointAtT(t);
-      return [new Bezier(p[0], pp[0], r), new Bezier(r, pp[1], p[2])];
+      return [new Bezier([p[0], pp[0], r]), new Bezier([r, pp[1], p[2]])];
     case 4:
       var q = this.intermediatePointsAtT(t),
           r = new Bezier(q).intermediatePointsAtT(t),
           s = new Bezier(r).pointAtT(t);
-      return [new Bezier(p[0], q[0], r[0], s), new Bezier(s, r[1], q[2], p[3])];
+      return [new Bezier([p[0], q[0], r[0], s]),
+        new Bezier([s, r[1], q[2], p[3]])];
     }
   },
   calcCurveLength: function() {
@@ -311,6 +392,7 @@ function calcLinearInterpolation(x, x0, x1, y0, y1) {
 
 return {
   Vector: Vector,
+  Matrix: Matrix,
   Bezier: Bezier,
   realRootsOfQuadraticEquation: realRootsOfQuadraticEquation,
   calcIntegrationBySimpson: calcIntegrationBySimpson,
