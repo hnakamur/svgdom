@@ -4,64 +4,114 @@ function Vector(x, y) {
   this.x = Number(x);
   this.y = Number(y);
 }
-Vector.fromFlatArray = function(xy) {
-  var points = [];
-  for (var i = 0, n = xy.length; i < n; i += 2) {
-    points.push(new Vector(xy[i], xy[i + 1]));
+mix(Vector, {
+  fromFlatArray: function(xy) {
+    var points = [];
+    for (var i = 0, n = xy.length; i < n; i += 2) {
+      points.push(new Vector(xy[i], xy[i + 1]));
+    }
+    return points;
+  },
+
+  toFlatArray: function(vectors) {
+    var xy = [];
+    for (var i = 0, n = vectors.length; i < n; ++i) {
+      var v = vectors[i];
+      xy.push(v.x);
+      xy.push(v.y);
+    }
+    return xy;
+  },
+
+  polynomial: function(t, constants) {
+    var i = constants.length - 1, p = constants[i];
+    while (--i >= 0)
+      p = constants[i].add(p.scale(t));
+    return p;
   }
-  return points;
-};
-Vector.toFlatArray = function(vectors) {
-  var xy = [];
-  for (var i = 0, n = vectors.length; i < n; ++i) {
-    var v = vectors[i];
-    xy.push(v.x);
-    xy.push(v.y);
-  }
-  return xy;
-};
-Vector.polynomial = function(t, constants) {
-  var i = constants.length - 1, p = constants[i];
-  while (--i >= 0)
-    p = constants[i].add(p.scale(t));
-  return p;
-};
-Vector.prototype = {
+});
+mix(Vector.prototype, {
   length: function() {
     var x = this.x, y = this.y;
     return Math.sqrt(x * x + y * y);
   },
+
   add: function(p) {
     return new Vector(this.x + p.x, this.y + p.y);
   },
+
   subtract: function(p) {
     return new Vector(this.x - p.x, this.y - p.y);
   },
+
   scale: function(s) {
     return new Vector(s * this.x, s * this.y);
   },
+
   dotProduct: function(p) {
     return this.x * p.x + this.y * p.y;
   },
+
   crossProductZ: function(p) {
     return this.x * p.y - this.y * p.x;
   }
-}
+});
 
-function Matrix(elements) {
-  this.elements = elements;
-  var m = this.rowSize = elements.length;
-  var n = this.columnSize = elements[0].length;
-  for (var i = 1; i < m; ++i) {
-    if (elements[i].length !== n)
-      throw new Error('Column size of all rows must be the same.');
+function Matrix(rowSize, columnSize) {
+  var m = this.rowSize = rowSize,
+      n = this.columnSize = columnSize || rowSize,
+      a = this.elements = [];
+  for (var i = 0; i < m; ++i) {
+    a[i] = [];
+    for (var j = 0; j < n; ++j)
+      a[i][j] = 0;
   }
 }
-Matrix.prototype = {
+mix(Matrix, {
+  identity: function(dimension) {
+    var A = new Matrix(dimension, dimension),
+        a = A.elements;
+    for (var i = 0; i < dimension; ++i)
+      a[i][i] = 1;
+    return A;
+  },
+
+  fromElements: function(elements) {
+    var m = elements.length,
+        n = elements[0].length,
+        A = new Matrix(m, n),
+        a = A.elements;
+    for (var i = 0; i < m; ++i) {
+      a[i] = [];
+      for (var j = 0; j < n; ++j)
+        a[i][j] = elements[i][j];
+    }
+    return A;
+  }
+});
+mix(Matrix.prototype, {
   isSameSize: function(matrix) {
     return this.rowSize === matrix.rowSize &&
         this.columnSize === matrix.columnSize;
   },
+
+  isSquare: function() {
+    return this.rowSize === this.columnSize;
+  },
+
+  clone: function() {
+    var m = this.rowSize,
+        n = this.columnSize,
+        a = this.elements,
+        B = new Matrix(m, n),
+        b = B.elements;
+    for (var i = 0; i < m; ++i) {
+      for (var j = 0; j < n; ++j)
+        b[i][j] = a[i][j];
+    }
+    return B;
+  },
+
   add: function(matrix) {
     if (!this.isSameSize(matrix))
       throw new Error('Cannot add a matrix of different size.');
@@ -69,14 +119,15 @@ Matrix.prototype = {
         n = this.columnSize,
         a = this.elements,
         b = matrix.elements,
-        c = [];
+        C = new Matrix(m, n),
+        c = C.elements;
     for (var i = 0; i < m; ++i) {
-      c[i] = [];
       for (var j = 0; j < n; ++j)
         c[i][j] = a[i][j] + b[i][j];
     }
-    return new Matrix(c);
+    return C;
   },
+
   subtract: function(matrix) {
     if (!this.isSameSize(matrix))
       throw new Error('Cannot subtract a matrix of different size.');
@@ -84,27 +135,42 @@ Matrix.prototype = {
         n = this.columnSize,
         a = this.elements,
         b = matrix.elements,
-        c = [];
+        C = new Matrix(m, n),
+        c = C.elements;
     for (var i = 0; i < m; ++i) {
-      c[i] = [];
       for (var j = 0; j < n; ++j)
         c[i][j] = a[i][j] - b[i][j];
     }
-    return new Matrix(c);
+    return C;
   },
+
   scale: function(s) {
       throw new Error('Cannot subtract a matrix of different size.');
     var m = this.rowSize,
         n = this.columnSize,
         a = this.elements
-        c = [];
+        C = new Matrix(m, n),
+        c = C.elements;
     for (var i = 0; i < m; ++i) {
-      c[i] = [];
       for (var j = 0; j < n; ++j)
         c[i][j] = s * a[i][j];
     }
-    return new Matrix(c);
+    return C;
   },
+
+  transpose: function() {
+    var m = this.rowSize,
+        n = this.columnSize,
+        a = this.elements,
+        B = new Matrix(m, n),
+        b = B.elements;
+    for (var i = 0; i < m; ++i) {
+      for (var j = 0; j < n; ++j)
+        b[j][i] = a[i][j];
+    }
+    return B;
+  },
+
   multiply: function(matrix) {
     if (this.columnSize !== matrix.rowSize)
       throw new Error('Cannot multiply a matrix whose row size does not equal to this matrix\'s column size.');
@@ -113,20 +179,179 @@ Matrix.prototype = {
         p = matrix.columnSize,
         a = this.elements,
         b = matrix.elements,
-        c = [],
-        cij;
+        C = new Matrix(m, p),
+        c = C.elements;
     for (var i = 0; i < m; ++i) {
-      c[i] = [];
       for (var j = 0; j < p; ++j) {
-        cij = 0;
         for (var r = 0; r < n; ++r)
-          cij += a[i][r] * b[r][j];
-        c[i][j] = cij;
+          c[i][j] += a[i][r] * b[r][j];
       }
     }
-    return new Matrix(c);
-  }
-}
+    return C;
+  },
+
+  toString: function() {
+    var m = this.rowSize,
+        n = this.columnSize,
+        a = this.elements,
+        rows = [],
+        columns;
+    for (var i = 0; i < m; ++i) {
+      columns = [];
+      for (var j = 0; j < n; ++j) {
+        columns.push(String(a[i][j]));
+      }
+      rows.push('[' + columns.join(' ') + ']');
+    }
+    return rows.join('\n');
+  },
+
+  toReducedRowEchelonForm: function() {
+    var lead = 0,
+        m = this.rowSize,
+        n = this.columnSize,
+        a = this.elements,
+        r, i, k;
+    for (r = 0; r < m; ++r) {
+      if (m <= lead)
+        return this;
+
+      i = r;
+      while (a[i][lead] === 0) {
+        ++i;
+        if (m === i) {
+          i = r;
+          ++lead;
+          if (m === lead)
+            return this;
+        }
+      }
+      if (i !== r)
+        this.swapRows(i, r);
+
+      // Divide row r by a[r][k]
+      for (k = 0; k < n; ++k)
+        a[r][k] /= a[r][lead];
+
+      for (i = 0; i < m; ++i) {
+        if (i !== r) {
+          // Subtract a[i][lead] multiplied by row r from row i
+          for (k = 0; k < n; ++k)
+            a[i][k] -= a[i][lead] * a[r][k];
+        }
+      }
+      ++lead;
+    }
+    return this;
+  },
+
+  swapRows: function(i1, i2) {
+    var a = this.elements,
+        tmp = a[i2];
+    a[i2] = a[i1];
+    a[i1] = tmp;
+  },
+
+  swapColumns: function(j1, j2) {
+    var a = this.elements,
+        n = this.rowCount,
+        i, tmp;
+    for (i = 0; i < n; ++i) {
+      tmp = a[i][j1];
+      a[i][j1] = a[i][j2];
+      a[i][j2] = tmp;
+    }
+  },
+
+  computeLUDecompositionWithPartialPivoting: function() {
+    function computeLUDecompositionWithPartialPivoting() {
+      if (!this.isSquare())
+        throw new Error('A non square matrix is not supported.');
+      var n = this.rowSize,
+          nm1 = n - 1,
+//          A = this.clone(),
+//          a = A.elements,
+          a = this.elements,
+          L = new Matrix(n),
+          l = L.elements,
+          U = Matrix.identity(n),
+          u = U.elements,
+          order = [],
+          i, j, k, diag, sum;
+
+      for (k = 0; k < n; ++k)
+        order[k] = k;
+
+      pivot(this, order, 0);
+      diag = 1 / a[0][0];
+      for (j = 1; j < n; ++j)
+        a[0][j] *= diag;
+
+      for (j = 1; j < nm1; ++j) {
+        for (i = j; i < n; ++i) {
+          sum = 0;
+          for (k = 0; k < j; ++k)
+            sum += a[i][k] * a[k][j];
+          a[i][j] -= sum;
+        }
+
+        pivot(this, order, j);
+        diag = 1 / a[j][j];
+        for (k = j + 1; k < n; ++k) {
+          sum = 0;
+          for (i = 0; i < j; ++i)
+            sum += a[j][i] * a[i][k];
+          a[j][k] = (a[j][k] - sum) * diag;
+        }
+      }
+
+      sum = 0;
+      for (k = 0; k < nm1; ++k)
+        sum += a[nm1][k] * a[k][nm1];
+      a[nm1][nm1] -= sum;
+
+      for (i = 0; i < n; ++i) {
+        for (j = 0; j < n; ++j) {
+          if (i < j)
+            u[i][j] = a[i][j];
+          else
+            l[i][j] = a[i][j];
+        }
+      }
+      return {L: L, U: U, order: order};
+    }
+
+    function pivot(self, order, k) {
+      var r = findPivotRow(self, k);
+      if (r !== k) {
+        self.swapRows(r, k);
+        order[k] = r;
+      }
+    }
+
+    function findPivotRow(self, j) {
+      var a = self.elements,
+          m = self.rowSize,
+          row = j,
+          max = Math.abs(a[row][j]),
+          i, absAij;
+      for (i = row + 1; i < m; ++i) {
+        absAij = Math.abs(a[i][j]);
+        if (max < absAij) {
+          row = i;
+          max = absAij;
+        }
+      }
+      return row;
+    };
+
+    mix(computeLUDecompositionWithPartialPivoting, {
+      pivot: pivot,
+      findPivotRow: findPivotRow
+    });
+    return computeLUDecompositionWithPartialPivoting;
+  }()
+});
 
 function Bezier(points) {
   this.points = points;
@@ -390,6 +615,12 @@ function calcLinearInterpolation(x, x0, x1, y0, y1) {
   return y0 + (x - x0) * (y1 - y0) / (x1 - x0);
 }
 
+function mix(dest, src) {
+  for (var k in src)
+    dest[k] = src[k];
+  return dest;
+}
+
 return {
   Vector: Vector,
   Matrix: Matrix,
@@ -400,3 +631,17 @@ return {
 };
   
 }();
+
+A = new geom2d.Matrix.fromElements([
+[2, -1, -2],
+[-4, 6, 3],
+[-4, -2, 8]
+]);
+
+b = A.computeLUDecompositionWithPartialPivoting();
+
+C = geom2d.Matrix.fromElements([
+[1, 2, 3],
+[4, 5, 6],
+[7, 8, 9]
+]);
