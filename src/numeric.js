@@ -1,5 +1,9 @@
 var numeric = function() {
 
+// References:
+// [1] What Every Computer Scientist Should Know About Floating-Point Arithmetic
+//     http://docs.sun.com/source/806-3568/ncg_goldberg.html
+
 var MACHINE_EPSILON = 2.220446049250313e-16;
 
 // a * x^2 + b * x + c = 0
@@ -92,7 +96,7 @@ function equals(x, y, eps) {
   return Math.abs(x - y) <= eps;
 }
 
-function sum(values) {
+function sum(values, addAlgorithm) {
   var n = values.length;
   switch (n) {
   case 0:
@@ -102,10 +106,24 @@ function sum(values) {
   case 2:
     return values[0] + values[1];
   default:
-    return sum.multiAddAlgorithm(values);
+    return (addAlgorithm || sum.defaultAddAlgorithm)(values);
   }
 }
-sum.multiAddAlgorithm = sum.stableAlgorithm = function(values) {
+sum.addWithKahanAlgorithm = function(values) {
+  // OK: Firefox 3.5.3
+  // NG: Safari 4.0.3 (6531.9), Chrome 4.0.221.8
+  var s = values[0],
+      c = 0,
+      y, t;
+  for (var j = 1, n = values.length; j < n; ++j) {
+    y = values[j] - c;
+    t = s + y;
+    c = (t - s) - y;
+    s = t;
+  }
+  return s;
+}
+sum.addWithSortAndAddAlgorithm = function(values) {
   // When we add floating point numbers, we should avoid undesireable effects
   // which cause loss of significant bits:
   // - Round-off error
@@ -143,12 +161,14 @@ sum.multiAddAlgorithm = sum.stableAlgorithm = function(values) {
   return positiveSum + negativeSum;
 };
 sum.compareFunc = function(a, b) { return a - b; };
-sum.fastButUnstableAlgorithm = function(values) {
+sum.addWithSimpleButUnstableAlgorithm = function(values) {
   var total = 0;
   for (var i = 0, n = values.length; i < n; ++i)
     total += values[i];
   return total;
 };
+sum.defaultAddAlgorithm = sum.addWithSortAndAddAlgorithm;
+//sum.defaultAddAlgorithm = sum.addWithKahanAlgorithm;
 
 function filter(values, func) {
   var ret = [];
