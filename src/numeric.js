@@ -84,7 +84,7 @@ proto.findOneRoot = function(guess, epsilon) {
   while (++i < proto.findOneRoot.MaxIteration) {
     var nextGuess = guess - f(guess) / df(guess);
     console.log('guess=' + guess + ' next=' + nextGuess);
-    if (equals(nextGuess, guess, epsilon))
+    if (numberEquals(nextGuess, guess, epsilon))
       return nextGuess;
     guess = nextGuess;
   }
@@ -92,11 +92,11 @@ proto.findOneRoot = function(guess, epsilon) {
 }
 proto.findOneRoot.MaxIteration = 1000;
 
-function equals(x, y, eps) {
-  return Math.abs(x - y) <= eps;
+function numberEquals(x, y, epsilon) {
+  return epsilon ? Math.abs(x - y) <= epsilon : x === y;
 }
 
-function sum(values, addAlgorithm) {
+function sum(values) {
   var n = values.length;
   switch (n) {
   case 0:
@@ -106,7 +106,7 @@ function sum(values, addAlgorithm) {
   case 2:
     return values[0] + values[1];
   default:
-    return (addAlgorithm || sum.defaultAddAlgorithm)(values);
+    return sum.addAlgorithm(values);
   }
 }
 sum.addWithKahanAlgorithm = function(values) {
@@ -161,23 +161,23 @@ sum.addWithSortAndAddAlgorithm = function(values) {
   return positiveSum + negativeSum;
 };
 sum.compareFunc = function(a, b) { return a - b; };
-sum.addWithSimpleButUnstableAlgorithm = function(values) {
+sum.addWithNaiveAlgorithm = function(values) {
   var total = 0;
   for (var i = 0, n = values.length; i < n; ++i)
     total += values[i];
   return total;
 };
-sum.defaultAddAlgorithm = sum.addWithSortAndAddAlgorithm;
-//sum.defaultAddAlgorithm = sum.addWithKahanAlgorithm;
+sum.addAlgorithm = sum.addWithSortAndAddAlgorithm;
+//sum.addAlgorithm = sum.addWithKahanAlgorithm;
 
-function filter(values, func) {
-  var ret = [];
-  for (var i = 0, n = values.length; i < n; ++i) {
-    var value = values[i];
-    if (func(value))
-      ret.push(value);
-  }
-}
+//function filter(values, func) {
+//  var ret = [];
+//  for (var i = 0, n = values.length; i < n; ++i) {
+//    var value = values[i];
+//    if (func(value))
+//      ret.push(value);
+//  }
+//}
 
 function sortBy(values, func) {
   var n = values.length;
@@ -197,12 +197,13 @@ function sortBy(values, func) {
   return result;
 }
 sortBy.compareValue = function(a, b) {
-  return a.c - b.c;
+  var ac = a.c, bc = b.c;
+  return ac < bc ? -1 : ac > bc ? 1 : 0;
 }
 sortBy.compareArray = function(a, b) {
   var n = a.length;
   for (var i = 0; i < n; ++i) {
-    var d = a[i].c - b[i].c;
+    var d = sortBy.compareValue(a[i], b[i]);
     if (d)
       return d;
   }
@@ -220,13 +221,155 @@ function bind(func, obj) {
   }
 }
 
+/*
+ * Multi-dimensional (2, 3, ...) immutable vector.
+ * - elements: a vector whose dimension >= 2
+ * - x, y    : a vector whose dimension = 2
+ * - x, y, z : a vector whose dimension = 3
+ */
+function Vector(x, y, z) {
+  switch (arguments.length) {
+  case 1:
+    if (!isArray(x) || x.length < 2)
+      throw new Error('An component array with 2 or greater dimension is expected.');
+    this.components = x;
+    break;
+  case 2:
+    this.components = [x, y];
+    break;
+  case 3:
+    this.components = [x, y, z];
+    break;
+  }
+}
+Vector.sum = function(vectors) {
+  var vecCount = vectors.length, comps = [];
+  for (var i = 0, dim = this.dimension(); i < dim; ++i) {
+    var ithComps = [];
+    for (var j = 0; j < vecCount; ++j) {
+      ithComps.push(vectors[j].component(i));
+    }
+    comps.push(sum(ithComps));
+  }
+  return new Vector(comps);
+};
+var proto = Vector.prototype;
+proto.dimension = function() {
+  return this.components.length;
+}
+proto.component = function(i) {
+  return this.components[i];
+}
+proto.x = function() {
+  return this.components[0];
+};
+proto.y = function() {
+  return this.components[1];
+};
+proto.z = function() {
+  return this.components[2];
+};
+proto.equals = function(vec, componentEqualsFunc) {
+  var dim = this.dimension();
+  if (vec.dimension() !== dim)
+    return false;
+  if (!componentEqualsFunc)
+    componentEqualsFunc = numberEquals;
+  for (var i = 0; i < dim; ++i) {
+    if (!componentEqualsFunc(this.component(i), vec.component(i)))
+      return false;
+  }
+  return true;
+};
+proto.length = function() {
+  return Math.sqrt(this.dotProduct(this));
+};
+proto.add = function(vectorB) {
+  var dim = this.dimension();
+  if (vectorB.dimension() !== dim)
+    throw new Error('Vector dimension unmatch.');
+  var comps = [];
+  for (var i = 0; i < dim; ++i)
+    comps.push(this.component(i) + vectorB.component(i));
+  return new Vector(comps);
+};
+proto.subtract = function(vectorB) {
+  var dim = this.dimension();
+  if (vectorB.dimension() !== dim)
+    throw new Error('Vector dimension unmatch.');
+  var comps = [];
+  for (var i = 0; i < dim; ++i)
+    comps.push(this.component(i) - vectorB.component(i));
+  return new Vector(comps);
+};
+proto.scalarMult = function(factor) {
+  var dim = this.dimension();
+  var comps = [];
+  for (var i = 0; i < dim; ++i)
+    comps.push(this.component(i) * factor);
+  return new Vector(comps);
+};
+proto.scalarDiv = function(factor) {
+  var dim = this.dimension();
+  var comps = [];
+  for (var i = 0; i < dim; ++i)
+    comps.push(this.component(i) / factor);
+  return new Vector(comps);
+};
+proto.dotProduct = function(vectorB) {
+  var dim = this.dimension();
+  if (vectorB.dimension() !== dim)
+    throw new Error('Vector dimension unmatch.');
+  var terms = [];
+  for (var i = 0; i < dim; ++i)
+    terms.push(this.component(i) * vectorB.component(i));
+  return sum(terms);
+};
+proto.crossProduct = function(vectorB) {
+  // Calculate cross product of this vector and vectorB.
+  // Two dimensional vectors is treated as three dimensional vectors with
+  // z-component = 0.
+  //
+  // http://en.wikipedia.org/wiki/Cross_product
+  // http://en.wikipedia.org/wiki/Seven-dimensional_cross_product
+  var dim = this.dimension(),
+      bDim = vectorB.dimension();
+  if ((dim === 2 || dim === 3) && (bDim === 2 || bDim === 3)) {
+    var ax = this.x(), ay = this.y(), az = this.z() || 0,
+        bx = vectorB.x(), by = vectorB.y(), bz = vectorB.z() || 0;
+    return new Vector(ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx);
+  }
+  else if (dim === 7 && bDim === 7) {
+    var a1 = this.component(0), a2 = this.component(1),
+        a3 = this.component(2), a4 = this.component(3),
+        a5 = this.component(4), a6 = this.component(5),
+        a7 = this.component(6),
+        b1 = vectorB.component(0), b2 = vectorB.component(1),
+        b3 = vectorB.component(2), b4 = vectorB.component(3),
+        b5 = vectorB.component(4), b6 = vectorB.component(5),
+        b7 = vectorB.component(6);
+    return new Vector([
+      sum([x2 * y4, -x4 * y2, x3 * y7, -x7 * y3, x5 * y6, -x6 * y5]),
+      sum([x3 * y5, -x5 * y3, x4 * y1, -x1 * y4, x6 * y7, -x7 * y6]),
+      sum([x4 * y6, -x6 * y4, x5 * y2, -x2 * y5, x7 * y1, -x1 * y7]),
+      sum([x5 * y7, -x7 * y5, x6 * y3, -x3 * y6, x1 * y2, -x2 * y1]),
+      sum([x6 * y1, -x1 * y6, x7 * y4, -x4 * y7, x2 * y3, -x3 * y2]),
+      sum([x7 * y2, -x2 * y7, x1 * y5, -x5 * y1, x3 * y4, -x4 * y3]),
+      sum([x1 * y3, -x3 * y8, x2 * y6, -x6 * y2, x4 * y5, -x5 * y4])
+    ]);
+  }
+  else
+    throw new Error('Cross product is supported for 2, 3 or 7 dimensional vectors only.');
+};
+
 return {
   MACHINE_EPSILON: MACHINE_EPSILON,
   bind: bind,
-  equals: equals,
+  numberEquals: numberEquals,
   sum: sum,
   sortBy: sortBy,
-  QuadraticEquation: QuadraticEquation 
+  QuadraticEquation: QuadraticEquation,
+  Vector: Vector
 };
 
 }();
