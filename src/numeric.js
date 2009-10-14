@@ -96,26 +96,19 @@ function numberEquals(x, y, epsilon) {
   return epsilon ? Math.abs(x - y) <= epsilon : x === y;
 }
 
-function sum(values) {
-  var n = values.length;
-  switch (n) {
-  case 0:
-    return 0;
-  case 1:
-    return values[0];
-  case 2:
-    return values[0] + values[1];
-  default:
-    return sum.addAlgorithm(values);
-  }
+function sum(values, addAlgorithm) {
+  return (addAlgorithm || sum.defaultAddAlgorithm)(values);
 }
 sum.addWithKahanAlgorithm = function(values) {
   // OK: Firefox 3.5.3
   // NG: Safari 4.0.3 (6531.9), Chrome 4.0.221.8
+  var n = values.length;
+  if (n === 0)
+    return 0;
   var s = values[0],
       c = 0,
       y, t;
-  for (var j = 1, n = values.length; j < n; ++j) {
+  for (var j = 1; j < n; ++j) {
     y = values[j] - c;
     t = s + y;
     c = (t - s) - y;
@@ -143,22 +136,31 @@ sum.addWithSortAndAddAlgorithm = function(values) {
   // http://en.wikipedia.org/wiki/Numerical_stability
   // http://en.wikipedia.org/wiki/Loss_of_significance
 
-  values = values.concat().sort(sum.compareFunc);
   var n = values.length;
+  switch (n) {
+  case 0:
+    return 0;
+  case 1:
+    return values[0];
+  case 2:
+    return values[0] + values[1];
+  default:
+    values = values.concat().sort(sum.compareFunc);
 
-  var positiveStart = 0;
-  while (positiveStart < n && values[positiveStart] < 0)
-    ++positiveStart;
+    var positiveStart = 0;
+    while (positiveStart < n && values[positiveStart] < 0)
+      ++positiveStart;
 
-  var negativeSum = 0;
-  for (var i = positiveStart - 1; i >= 0; --i)
-    negativeSum += values[i];
+    var negativeSum = 0;
+    for (var i = positiveStart - 1; i >= 0; --i)
+      negativeSum += values[i];
 
-  var positiveSum = 0;
-  for (i = positiveStart; i < n; ++i)
-    positiveSum += values[i];
+    var positiveSum = 0;
+    for (i = positiveStart; i < n; ++i)
+      positiveSum += values[i];
 
-  return positiveSum + negativeSum;
+    return positiveSum + negativeSum;
+  }
 };
 sum.compareFunc = function(a, b) { return a - b; };
 sum.addWithNaiveAlgorithm = function(values) {
@@ -167,8 +169,29 @@ sum.addWithNaiveAlgorithm = function(values) {
     total += values[i];
   return total;
 };
-sum.addAlgorithm = sum.addWithSortAndAddAlgorithm;
-//sum.addAlgorithm = sum.addWithKahanAlgorithm;
+sum.defaultAddAlgorithm = sum.addWithSortAndAddAlgorithm;
+//sum.defaultAddAlgorithm = sum.addWithKahanAlgorithm;
+
+function mapScale(values, factor) {
+  var n = values.length, ret = [];
+  for (var i = 0; i < n; ++i)
+    ret[i] = values[i] * factor;
+  return ret;
+}
+
+function mapDiv(values, factor) {
+  var n = values.length, ret = [];
+  for (var i = 0; i < n; ++i)
+    ret[i] = values[i] / factor;
+  return ret;
+}
+
+function mapNegate(values) {
+  var n = values.length, ret = [];
+  for (var i = 0; i < n; ++i)
+    ret[i] = -values[i];
+  return ret;
+}
 
 //function filter(values, func) {
 //  var ret = [];
@@ -178,6 +201,65 @@ sum.addAlgorithm = sum.addWithSortAndAddAlgorithm;
 //      ret.push(value);
 //  }
 //}
+
+function Integral(f, a, b, algorithm) {
+  this.f = f;
+  this.a = a;
+  this.b = b;
+  this.algorithm = (algorithm || Integral.defaultAlgorithm);
+}
+var proto = Integral.prototype;
+proto.calc = function() {
+  return this.algorithm.apply(this, arguments);
+};
+proto.simpsonAlgorithm = function(relativeEps) {
+  // http://en.wikipedia.org/wiki/Simpson%27s_rule
+  var f = this.f, a = this.a, b = this.b;
+  var n = 2;
+  var h = (b - a) / n;
+  var endValues = [f(a), f(b)];
+  var oddValuesTimes4 = [4 * f(a + h)];
+  var oldResult = h / 3 * sum(endValues.concat(oddValuesTimes4));
+  var evenValuesTimes2 = [];
+  while (true) {
+    n *= 2;
+    h /= 2;
+    for (var i = 0, m = oddValuesTimes4.length; i < m; ++i)
+      evenValuesTimes2.push(oddValuesTimes4[i] / 2);
+    oddValuesTimes4 = [];
+    for (var i = 1; i < n; i += 2)
+      oddValuesTimes4.push(4 * f(a + h * i));
+    newResult = h / 3 * sum(
+      endValues.concat(oddValuesTimes4, evenValuesTimes2));
+    if (Math.abs((newResult - oldResult) / oldResult) < relativeEps)
+      break;
+    oldResult = newResult;
+  }
+//console.log('simpson n=' + n + ', Result=' + newResult);
+  return newResult;
+};
+Integral.defaultAlgorithm = Integral.prototype.simpsonAlgorithm;
+
+//function Iterator() {
+//}
+//var proto = Iterator.prototype;
+//proto.hasNext = function() {
+//};
+//proto.next = function() {
+//};
+//
+//function ArrayIterator(array) {
+//  this.array = array;
+//  this.length = array.length;
+//  this.index = 0;
+//}
+//var proto = Iterator.prototype;
+//proto.hasNext = function() {
+//  return this.index < this.length - 1;
+//};
+//proto.next = function() {
+//  return this.array[this.index++];
+//};
 
 function sortBy(values, func) {
   var n = values.length;
@@ -367,6 +449,10 @@ return {
   bind: bind,
   numberEquals: numberEquals,
   sum: sum,
+  mapScale: mapScale,
+  mapDiv: mapDiv,
+  mapNegate: mapNegate,
+  Integral: Integral,
   sortBy: sortBy,
   QuadraticEquation: QuadraticEquation,
   Vector: Vector

@@ -1,0 +1,28 @@
+<html>
+<head>
+<title>array loop test</title>
+<link rel="stylesheet" href="lib/qunit.css" type="text/css" media="screen"></link>
+<script src="lib/qunit.js"></script>
+<script>
+window.onload = function() {
+  test('array loop', function() {
+    var array = [];
+    for (var i = 0; i < 100; ++i)
+      array.push(i);
+
+    for (var j = 0; j < 10000; ++j) {
+      var ret = [];
+      for (var i = 0, n = array.length; i < n; ++i)
+        ret.push(array[i] / 2);
+    }
+  });
+};
+</script>
+</head>
+<body>
+  <h1 id="qunit-header">array loop test</h1>
+  <h2 id="qunit-banner"></h2>
+  <h2 id="qunit-userAgent"></h2>
+  <ol id="qunit-tests"></ol>
+</body>
+</html>

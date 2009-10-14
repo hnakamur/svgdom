@@ -491,6 +491,13 @@ Bezier.prototype = {
     var segments = this.segments();
     return segments[segments.length - 1].accLen;
   },
+  calcCurveLength2: function() {
+    var self = this;
+    function f(t) {
+      return self.derivativeAtT(t).length();
+    }
+    return new numeric.Integral(f, 0, 1).calc(Bezier.epsilon);
+  },
   getTAtLength: function(length) {
     var segments = this.segments();
     var index = binarySearch(segments, 'accLen', length);
