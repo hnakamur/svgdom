@@ -1,3 +1,8 @@
+****************************************************************************
+I discontinued this project because I decided to use the jQuery SVG plugin
+by Mr. Keith Wood.
+****************************************************************************
+
 svgdom - A SVG DOM manipulator which is easy to use for common tasks.
 It is aimed at using with svgweb (http://svgweb.googlecode.com/).
 

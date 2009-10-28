@@ -14,24 +14,6 @@ function QuadraticEquation(a, b, c) {
 }
 var proto = QuadraticEquation.prototype;
 proto.valueAt = function(x) {
-//console.log('x = ' + x);
-//console.log('a * x = ' + this.a * x);
-//console.log('b = ' + this.b);
-//console.log('a * x + b = ' + (this.a * x + this.b));
-//console.log('(a * x + b) * x = ' + (this.a * x + this.b) * x);
-//console.log('c = ' + this.c);
-//console.log('(a * x + b) * x + c = ' + ((this.a * x + this.b) * x + this.c));
-//  return (this.a * x + this.b) * x + this.c; // instable for roots when a * c << b^2
-
-//console.log('x = ' + x);
-//console.log('c = ' + this.c);
-//console.log('a * x * x = ' + this.a * x * x);
-//console.log('a * x * x + c = ' + (this.a * x * x + this.c));
-//console.log('b * x = ' + (this.b * x));
-//console.log('a * x * x + c + b * x= ' + (this.a * x * x + this.c + this.b * x));
-//  return (this.a * x * x + this.c + this.b * x);
-
-//  return this.a * x * x + this.b * x + this.c;
   return sum([this.a * x * x, this.b * x, this.c]);
 };
 proto.derivAt = function(x) {
@@ -49,17 +31,6 @@ proto.realRoots = function() {
         x2 = c / t;
         y1 = this.valueAt(x1),
         y2 = this.valueAt(x2);
-
-//    if (y1 || y2) {
-//      var m = new NewtonRaphsonMethod(
-//        bind(this.valueAt, this),
-//        bind(this.derivAt, this));
-//      var eps = 1e-12;
-//      if (y1)
-//        x1 = m.findOneRoot(x1, eps);
-//      if (y2)
-//        x2 = m.findOneRoot(x2, eps);
-//    }
     //x1 = -0.5 * (b + Math.sqrt(dis));
     //x2 = -0.5 * (b - Math.sqrt(dis));
     return x1 < x2 ? [x1, x2] : [x2, x1];
@@ -72,6 +43,64 @@ proto.realRoots = function() {
 proto.discriminant = function() {
   return this.b * this.b - 4 * this.a * this.c;
 };
+
+// sum(c[i] * t^i) (i=0..n)
+function Polynominal(coefficients) {
+  this.coefficients = coefficients;
+}
+Polynominal.resultant = function(f, g) {
+  var degree = Math.max(f.degree(), g.degree()),
+      a = f.expandDegree(degree).coefficients,
+      b = g.expandDegree(degree).coefficients;
+  function ab(i, j) {
+    return a[i] * b[j] - a[j] * b[i];
+  }
+
+  switch (degree) {
+  case 1:
+    return ab(1, 0);
+  case 2:
+    var a2b1 = ab(2, 1), a2b0 = ab(2, 0),
+        a1b0 = ab(1, 0);
+    return Matrix.det2by2(a2b1, a2b0, a2b0, a1b0);
+  case 3:
+    var a3b2 = ab(3, 2), a3b1 = ab(3, 1), a3b0 = ab(3, 0),
+        a2b1 = ab(2, 1), a2b0 = ab(2, 0),
+        a1b0 = ab(1, 0);
+    return Matrix.det3by3(
+      a3b2, a3b1, a3b0,
+      a3b1, a3b0 + a2b1, a2b0,
+      a3b0, a2b0, a1b0
+    );
+  default:
+    throw new Error('Only polynominals of 3 or lower degree are supported.');
+  }
+}
+var proto = Polynominal.prototype;
+proto.degree = function() {
+  return this.coefficients.length - 1;
+};
+proto.expandDegree = function(degree) {
+  var c = this.coefficients.concat();
+  for (var n = degree - this.degree(); n >= 0; --n)
+    c.push(0);
+  return new Polynominal(c);
+};
+proto.coefficient = function(degree) {
+  return this.coefficients[degree] || 0;
+};
+proto.valueAt = function(t) {
+  var terms = [], degree = this.degree(), c = this.coefficients,
+      i = 0, ti = 1;
+  while (true) {
+    terms.push(c[i] * ti);
+    if (++i > degree)
+      break;
+    ti *= t;
+  }
+  return sum(terms);
+};
+
 
 function NewtonRaphsonMethod(func, derivFunc) {
   this.func = func;
@@ -172,27 +201,6 @@ sum.addWithNaiveAlgorithm = function(values) {
 sum.defaultAddAlgorithm = sum.addWithSortAndAddAlgorithm;
 //sum.defaultAddAlgorithm = sum.addWithKahanAlgorithm;
 
-function mapScale(values, factor) {
-  var n = values.length, ret = [];
-  for (var i = 0; i < n; ++i)
-    ret[i] = values[i] * factor;
-  return ret;
-}
-
-function mapDiv(values, factor) {
-  var n = values.length, ret = [];
-  for (var i = 0; i < n; ++i)
-    ret[i] = values[i] / factor;
-  return ret;
-}
-
-function mapNegate(values) {
-  var n = values.length, ret = [];
-  for (var i = 0; i < n; ++i)
-    ret[i] = -values[i];
-  return ret;
-}
-
 //function filter(values, func) {
 //  var ret = [];
 //  for (var i = 0, n = values.length; i < n; ++i) {
@@ -202,19 +210,11 @@ function mapNegate(values) {
 //  }
 //}
 
-function Integral(f, a, b, algorithm) {
-  this.f = f;
-  this.a = a;
-  this.b = b;
-  this.algorithm = (algorithm || Integral.defaultAlgorithm);
+function integral(f, a, b, relativeEps, algorithm) {
+  (algorithm || integral.defaultAlgorithm)(f, a, b, relativeEps);
 }
-var proto = Integral.prototype;
-proto.calc = function() {
-  return this.algorithm.apply(this, arguments);
-};
-proto.simpsonAlgorithm = function(relativeEps) {
+integral.simpsonAlgorithm = function(f, a, b, relativeEps) {
   // http://en.wikipedia.org/wiki/Simpson%27s_rule
-  var f = this.f, a = this.a, b = this.b;
   var n = 2;
   var h = (b - a) / n;
   var endValues = [f(a), f(b)];
@@ -238,28 +238,7 @@ proto.simpsonAlgorithm = function(relativeEps) {
 //console.log('simpson n=' + n + ', Result=' + newResult);
   return newResult;
 };
-Integral.defaultAlgorithm = Integral.prototype.simpsonAlgorithm;
-
-//function Iterator() {
-//}
-//var proto = Iterator.prototype;
-//proto.hasNext = function() {
-//};
-//proto.next = function() {
-//};
-//
-//function ArrayIterator(array) {
-//  this.array = array;
-//  this.length = array.length;
-//  this.index = 0;
-//}
-//var proto = Iterator.prototype;
-//proto.hasNext = function() {
-//  return this.index < this.length - 1;
-//};
-//proto.next = function() {
-//  return this.array[this.index++];
-//};
+integral.defaultAlgorithm = integral.simpsonAlgorithm;
 
 function sortBy(values, func) {
   var n = values.length;
@@ -305,9 +284,9 @@ function bind(func, obj) {
 
 /*
  * Multi-dimensional (2, 3, ...) immutable vector.
- * - elements: a vector whose dimension >= 2
- * - x, y    : a vector whose dimension = 2
- * - x, y, z : a vector whose dimension = 3
+ * - components: a vector whose dimension >= 2
+ * - x, y      : a vector whose dimension = 2
+ * - x, y, z   : a vector whose dimension = 3
  */
 function Vector(x, y, z) {
   switch (arguments.length) {
@@ -444,18 +423,296 @@ proto.crossProduct = function(vectorB) {
     throw new Error('Cross product is supported for 2, 3 or 7 dimensional vectors only.');
 };
 
+function Matrix() {
+  var rowSize, columnSize, elements;
+  if (isArray(arguments[0])) {
+    elements = arguments[0];
+    rowSize = elements.length;
+    columnSize = elements[0].length;
+  }
+  else {
+    rowSize = arguments[0];
+    columnSize = elements[1] || rowSize;
+  }
+
+  var m = this.rowSize = rowSize,
+      n = this.columnSize = columnSize,
+      a = this.elements = [];
+  for (var i = 0; i < m; ++i) {
+    a[i] = [];
+    for (var j = 0; j < n; ++j)
+      a[i][j] = elements ? elements[i][j] : 0;
+  }
+}
+Matrix.identity = function(dimension) {
+  var A = new Matrix(dimension, dimension),
+      a = A.elements;
+  for (var i = 0; i < dimension; ++i)
+    a[i][i] = 1;
+  return A;
+};
+Matrix.det2by2 = function(a, b, c, d) {
+  return a * d - b * c;
+};
+Matrix.det3by3 = function(a, b, c, d, e, f, g, h, i) {
+  return sum(
+    [a * e * i, -a * f * h, b * f * g, -b * d * i, c * d * h, -c * e * g]);
+};
+var proto = Matrix.prototype;
+proto.isSameSize = function(matrix) {
+  return this.rowSize === matrix.rowSize &&
+      this.columnSize === matrix.columnSize;
+};
+proto.isSquare = function() {
+  return this.rowSize === this.columnSize;
+};
+proto.clone = function() {
+  return new Matrix(this.elements);
+};
+proto.forEach = function(callback) {
+  var m = this.rowSize,
+      n = this.columnSize,
+      a = this.elements;
+  for (var i = 0; i < m; ++i) {
+    for (var j = 0; j < n; ++j)
+      callback(a[i][j], i, j, a);
+  }
+};
+proto.add = function(matrix) {
+  if (!this.isSameSize(matrix))
+    throw new Error('Cannot add a matrix of different size.');
+  var A = this.clone(),
+      b = matrix.elements;
+  A.forEach(function(aij, i, j, a) {
+    a[i][j] += b[i][j];
+  });
+  return A;
+};
+proto.subtract = function(matrix) {
+  if (!this.isSameSize(matrix))
+    throw new Error('Cannot subtract a matrix of different size.');
+  var A = this.clone(),
+      b = matrix.elements;
+  A.forEach(function(aij, i, j, a) {
+    a[i][j] -= b[i][j];
+  });
+  return A;
+};
+proto.scaleMult = function(factor) {
+  if (!this.isSameSize(matrix))
+    throw new Error('Cannot subtract a matrix of different size.');
+  var A = this.clone(),
+      b = matrix.elements;
+  A.forEach(function(aij, i, j, a) {
+    a[i][j] *= factor;
+  });
+  return A;
+};
+proto.scaleDiv = function(factor) {
+  if (!this.isSameSize(matrix))
+    throw new Error('Cannot subtract a matrix of different size.');
+  var A = this.clone(),
+      b = matrix.elements;
+  A.forEach(function(aij, i, j, a) {
+    a[i][j] /= factor;
+  });
+  return A;
+};
+proto.transpose = function() {
+  var m = this.rowSize,
+      n = this.columnSize,
+      B = new Matrix(n, m),
+      b = B.elements;
+  this.forEach(function(aij, i, j, a) {
+    b[j][i] = aij;
+  });
+  return B;
+};
+proto.multiply = function(matrix) {
+  if (this.columnSize !== matrix.rowSize)
+    throw new Error('Cannot multiply a matrix whose row size does not equal to this matrix\'s column size.');
+  var m = this.rowSize,
+      n = this.columnSize,
+      p = matrix.columnSize,
+      a = this.elements,
+      b = matrix.elements,
+      C = new Matrix(m, p),
+      c = C.elements;
+  for (var i = 0; i < m; ++i) {
+    for (var j = 0; j < p; ++j) {
+      for (var r = 0; r < n; ++r)
+        c[i][j] += a[i][r] * b[r][j];
+    }
+  }
+  return C;
+};
+proto.toString = function() {
+  var m = this.rowSize,
+      n = this.columnSize,
+      a = this.elements,
+      rows = [],
+      columns;
+  for (var i = 0; i < m; ++i) {
+    columns = [];
+    for (var j = 0; j < n; ++j) {
+      columns.push(String(a[i][j]));
+    }
+    rows.push('[' + columns.join(' ') + ']');
+  }
+  return rows.join('\n');
+};
+proto.toReducedRowEchelonForm = function() {
+  var lead = 0,
+      m = this.rowSize,
+      n = this.columnSize,
+      a = this.elements,
+      r, i, k;
+  for (r = 0; r < m; ++r) {
+    if (m <= lead)
+      return this;
+
+    i = r;
+    while (a[i][lead] === 0) {
+      ++i;
+      if (m === i) {
+        i = r;
+        ++lead;
+        if (m === lead)
+          return this;
+      }
+    }
+    if (i !== r)
+      this.swapRows(i, r);
+
+    // Divide row r by a[r][k]
+    for (k = 0; k < n; ++k)
+      a[r][k] /= a[r][lead];
+
+    for (i = 0; i < m; ++i) {
+      if (i !== r) {
+        // Subtract a[i][lead] multiplied by row r from row i
+        for (k = 0; k < n; ++k)
+          a[i][k] -= a[i][lead] * a[r][k];
+      }
+    }
+    ++lead;
+  }
+  return this;
+};
+proto.swapRows = function(i1, i2) {
+  var a = this.elements,
+      tmp = a[i2];
+  a[i2] = a[i1];
+  a[i1] = tmp;
+};
+proto.swapColumns = function(j1, j2) {
+  var a = this.elements,
+      n = this.rowCount,
+      i, tmp;
+  for (i = 0; i < n; ++i) {
+    tmp = a[i][j1];
+    a[i][j1] = a[i][j2];
+    a[i][j2] = tmp;
+  }
+};
+proto.computeLUDecompositionWithPartialPivoting = function() {
+  function computeLUDecompositionWithPartialPivoting() {
+    if (!this.isSquare())
+      throw new Error('A non square matrix is not supported.');
+    var n = this.rowSize,
+        nm1 = n - 1,
+//          A = this.clone(),
+//          a = A.elements,
+        a = this.elements,
+        L = new Matrix(n),
+        l = L.elements,
+        U = Matrix.identity(n),
+        u = U.elements,
+        order = [],
+        i, j, k, diag, sum;
+
+    for (k = 0; k < n; ++k)
+      order[k] = k;
+
+    pivot(this, order, 0);
+    diag = 1 / a[0][0];
+    for (j = 1; j < n; ++j)
+      a[0][j] *= diag;
+
+    for (j = 1; j < nm1; ++j) {
+      for (i = j; i < n; ++i) {
+        sum = 0;
+        for (k = 0; k < j; ++k)
+          sum += a[i][k] * a[k][j];
+        a[i][j] -= sum;
+      }
+
+      pivot(this, order, j);
+      diag = 1 / a[j][j];
+      for (k = j + 1; k < n; ++k) {
+        sum = 0;
+        for (i = 0; i < j; ++i)
+          sum += a[j][i] * a[i][k];
+        a[j][k] = (a[j][k] - sum) * diag;
+      }
+    }
+
+    sum = 0;
+    for (k = 0; k < nm1; ++k)
+      sum += a[nm1][k] * a[k][nm1];
+    a[nm1][nm1] -= sum;
+
+    for (i = 0; i < n; ++i) {
+      for (j = 0; j < n; ++j) {
+        if (i < j)
+          u[i][j] = a[i][j];
+        else
+          l[i][j] = a[i][j];
+      }
+    }
+    return {L: L, U: U, order: order};
+  }
+
+  function pivot(self, order, k) {
+    var r = findPivotRow(self, k);
+    if (r !== k) {
+      self.swapRows(r, k);
+      order[k] = r;
+    }
+  }
+
+  function findPivotRow(self, j) {
+    var a = self.elements,
+        m = self.rowSize,
+        row = j,
+        max = Math.abs(a[row][j]),
+        i, absAij;
+    for (i = row + 1; i < m; ++i) {
+      absAij = Math.abs(a[i][j]);
+      if (max < absAij) {
+        row = i;
+        max = absAij;
+      }
+    }
+    return row;
+  };
+
+  computeLUDecompositionWithPartialPivoting.pivot = pivot;
+  computeLUDecompositionWithPartialPivoting.findPivotRow = findPivotRow;
+  return computeLUDecompositionWithPartialPivoting;
+}();
+
 return {
   MACHINE_EPSILON: MACHINE_EPSILON,
   bind: bind,
   numberEquals: numberEquals,
   sum: sum,
-  mapScale: mapScale,
-  mapDiv: mapDiv,
-  mapNegate: mapNegate,
-  Integral: Integral,
+  integral: integral,
   sortBy: sortBy,
   QuadraticEquation: QuadraticEquation,
-  Vector: Vector
+  Polynominal: Polynominal,
+  Vector: Vector,
+  Matrix: Matrix
 };
 
 }();

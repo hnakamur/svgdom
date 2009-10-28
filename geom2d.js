@@ -496,7 +496,7 @@ Bezier.prototype = {
     function f(t) {
       return self.derivativeAtT(t).length();
     }
-    return new numeric.Integral(f, 0, 1).calc(Bezier.epsilon);
+    return new numeric.integral(f, 0, 1, Bezier.epsilon);
   },
   getTAtLength: function(length) {
     var segments = this.segments();

@@ -71,8 +71,6 @@ function testNumeric() {
       1, 2 * (1 + numeric.MACHINE_EPSILON), 1);
     var roots = eqn.realRoots();
     equals(roots.length, 2, 'count of real roots');
-console.log('roots[0]=' + roots[0]);
-console.log('roots[1]=' + roots[1]);
     equals(eqn.valueAt(roots[0]), 0, 'equation value at root #1');
     equals(eqn.valueAt(roots[1]), 0, 'equation value at root #2');
   });
@@ -81,9 +79,46 @@ console.log('roots[1]=' + roots[1]);
     var eqn = new numeric.QuadraticEquation(1, -(1e8 + 1), 1);
     var roots = eqn.realRoots();
     equals(roots.length, 2, 'count of real roots');
-console.log('roots[0]=' + roots[0]);
-console.log('roots[1]=' + roots[1]);
     equals(eqn.valueAt(roots[0]), 0, 'equation value at root #1');
     equals(eqn.valueAt(roots[1]), 0, 'equation value at root #2');
+  });
+
+  test('polynominal resultant (degree 1)', function() {
+    var f, g, r;
+
+    f = new numeric.Polynominal([1, 2]);
+    g = new numeric.Polynominal([3, 1]);
+    r = numeric.Polynominal.resultant(f, g);
+    equals(r, 5, 'resultant');
+
+    f = new numeric.Polynominal([-2, 1]);
+    g = new numeric.Polynominal([-6, 3]);
+    r = numeric.Polynominal.resultant(f, g);
+    equals(r, 0, 'resultant');
+  });
+
+  test('polynominal resultant (degree 2)', function() {
+    var f, g, r;
+
+    f = new numeric.Polynominal([12, -7, 1]);
+    g = new numeric.Polynominal([2, -3, 1]);
+    r = numeric.Polynominal.resultant(f, g);
+    equals(r, -12, 'resultant');
+  });
+
+  test('polynominal resultant (degree 3)', function() {
+    var f, g, r;
+
+    // f(t) = t^3 − 2t^2 + 3t + 1, g(t) = 2t^3 + 3t^2 − t + 4
+    f = new numeric.Polynominal([1, 3, -2, 1]);
+    g = new numeric.Polynominal([4, -1, 3, 2]);
+    r = numeric.Polynominal.resultant(f, g);
+    equals(r, -1611, 'resultant');
+
+    // f(t) = t^3 − t^2 − 11t − 4, g(t) = 2t^3 −7t^2 −5t+ 4
+    f = new numeric.Polynominal([-4, -11, -1, 1]);
+    g = new numeric.Polynominal([4, -5, -7, 2]);
+    r = numeric.Polynominal.resultant(f, g);
+    equals(r, 0, 'resultant');
   });
 }
